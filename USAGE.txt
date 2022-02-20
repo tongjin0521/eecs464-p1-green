@@ -1,0 +1,24 @@
+Hands-on Robotics 2020 Blue Team - Usage
+
+Instruction on how to run the code:
+## In a terminal window
+export PYGIXSCHD=pygame
+cd ~/pyckbot/hrb/
+python3 waypointTask.py
+
+## In a new terminal window
+export PYGIXSCHD=pygame
+# cd to the location of this src folder (../src) if not already there
+cd [SRC LOCATION]
+python3 robotSimulator.py localhost
+
+Control Scheme:
+
+Key,	Action
+Up Arrow,	Moves robot forward
+Down Arrow,	Moves robot backward
+Left Arrow,	Turns robot CCW
+Right Arrow,	Turns robot CW
+Spacebar,	Lifts or lowers wheels for turning
+‘A’,	Starts autonomous mode
+‘S’,	Stops all movement and autonomous mode

@@ -1,0 +1,21 @@
+Hands-on Robotics 2020 Blue Team - Overview
+
+The src folder contains the following files:
+
+movePlans.py:
+High level plan to wrap real and simultated motion also contains auton class
+
+myRobotRealIX.py:
+Describes the real robot motion, move forwards/back, lift wheels, turn
+
+myRobotSimIX.py:
+Describes the simulated robot motion, move forwards/back, lift wheels, turn
+
+robotSimulator.py:
+Controls waypointTask communication and keybind actions
+
+How the files relate:
+robotSimulator.py runs and connects to either WaypointTask run on localhost or a specified IP and starts imports the simulated or real robotIX if the -r flag is turned on. Key presses are captured in the robotSimulator loop and then calls functions in respective files.
+
+General Theory:
+Running robotSimulator.py allows real or simulated robot control and communicates with WaypointTask.py
