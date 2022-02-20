@@ -48,23 +48,23 @@ class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         self.app = app
-        self.dNoise = .3 # Distance noise
-        self.aNoise = 3*(math.pi/180) # Angle noise
-        self.baseAngleNoise = 1*(math.pi/180)
+        self.dNoise = 0.1 # Distance noise
+        self.aNoise = 0.02 # Angle noise
         self.lNoise = 0.01 # Laser pointing noise
+        self.baseAngleNoise = 1*(math.pi/180)
+
+        #Handle coordiante transformation
         ## Reverse Homography
         roi  = np.array([ np.mean(MSG_TEMPLATE[nmi],0) for nmi in corners ] )
         roi  = np.c_[roi, np.ones_like(roi[:,1])]
-        # self.REF_TO_CAMERA = fitHomography(ref,roi)
         self.CAMERA_TO_REF = fitHomography(roi, ref)
         self.REF_TO_CAMERA = np.linalg.inv(self.CAMERA_TO_REF)
-        # np.savetxt("REF_TO_CAMERA.txt", self.REF_TO_CAMERA, fmt="%s")
-        # np.savetxt("CAMERA_TO_REF.txt", self.CAMERA_TO_REF, fmt="%s")
-
+        
         #Convert tag pos to ref coordinates
         xy1 = np.c_[self.tagPos, np.ones_like(self.tagPos[:,1])]
         xy1 = np.dot(xy1, self.CAMERA_TO_REF)
         self.tagPosRef = (xy1[:,:2]/xy1[:,[2]])
+
         # Model the tag
         #Converts tagPos to complex numbers. tag is a 4x1 array of the corners of the robot tag in complex numbers
         tag = np.dot(self.tagPosRef,[1,1j])
@@ -74,6 +74,7 @@ class RobotSim( RobotSimInterface ):
         self.baseAng = self.ang
         self.wheelsDown = True
         self.laserBlocked = False
+
         #Create variables to hold our estimates of our position
         self.tagPosRefEst = self.tagPosRef
         self.posEst = self.pos
@@ -84,9 +85,9 @@ class RobotSim( RobotSimInterface ):
         scale_f = 1/2
         self.rec_unrotated = np.dot([[1,scale_f*1j],
                                     [1,-scale_f*1j],
-                                    [-1,-1j],
-                                    [-1,+1j],
-                                    [1,+scale_f*1j]],
+                                    [-1,-scale_f*1j],
+                                    [-1,scale_f*1j],
+                                    [1,scale_f*1j]],
                                     rec_dim)
         self.base_unrotated = np.dot([[1,1j],
                                     [1,-1j],
@@ -180,7 +181,6 @@ class RobotSim( RobotSimInterface ):
         xy1 = np.c_[vl ,np.ones_like(vl[:,1])]
         xy1 = np.dot(xy1,self.REF_TO_CAMERA)
         vl_camera  = (xy1[:,:2]/xy1[:,[2]])
-
         # Start a new visual in robot subplot
         self.visRobotClear()
         # plot command in robot subplot,
@@ -206,6 +206,7 @@ class RobotSim( RobotSimInterface ):
         rec = self.rec_unrotated*self.ang
         rec_centered = rec+c
         rec_centered = np.asarray([[x.real, x.imag] for x in rec_centered])
+        # Tranfsorm to camera coordiantes
         xy1 = np.c_[rec_centered, np.ones_like(rec_centered[:,1])]
         xy1 = np.dot(xy1,self.REF_TO_CAMERA)
         rec_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
@@ -214,16 +215,16 @@ class RobotSim( RobotSimInterface ):
         self.visRobot('~plot', x, y, c='b')
         self.visArena('~plot', x, y, c='b', alpha=.5)
 
-        #Plot dashed rectangle indicating estimated position on the left plot (using ref coordinates)
-        recEst = self.rec_unrotated*self.angEst
-        rec_centeredEst = recEst+cEst
-        rec_centeredEst = np.asarray([[x.real, x.imag] for x in rec_centeredEst])
-        xy1 = np.c_[rec_centeredEst, np.ones_like(rec_centeredEst[:,1])]
-        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        rec_centeredEst_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        x = [int(x) for x in rec_centeredEst_camera_coordinates[:,0]]
-        y = [int(y) for y in rec_centeredEst_camera_coordinates[:,1]]
-        self.visArena('~plot',x,y,c='b',linestyle="--", alpha=.5)
+        # #Plot dashed rectangle indicating estimated position on the left plot (using ref coordinates)
+        # recEst = self.rec_unrotated*self.angEst
+        # rec_centeredEst = recEst+cEst
+        # rec_centeredEst = np.asarray([[x.real, x.imag] for x in rec_centeredEst])
+        # xy1 = np.c_[rec_centeredEst, np.ones_like(rec_centeredEst[:,1])]
+        # xy1 = np.dot(xy1,self.REF_TO_CAMERA)
+        # rec_centeredEst_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
+        # x = [int(x) for x in rec_centeredEst_camera_coordinates[:,0]]
+        # y = [int(y) for y in rec_centeredEst_camera_coordinates[:,1]]
+        # self.visArena('~plot',x,y,c='b',linestyle="--", alpha=.5)
 
         #Convert base to camera coordinates for plotting
         base = self.base_unrotated*self.baseAng
@@ -234,15 +235,15 @@ class RobotSim( RobotSimInterface ):
         base_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
         x = [int(x) for x in base_centered_camera_coordinates[:,0]]
         y = [int(y) for y in base_centered_camera_coordinates[:,1]]
-        self.visRobot('~plot', x, y, c='#FF4500')
-        self.visArena('~plot', x, y, c='#FF4500', alpha=.5)
+        self.visRobot('~plot', x, y, c='g')
+        self.visArena('~plot', x, y, c='g', alpha=.5)
 
-        #Plot base for estimated position on left plot only (orientation doesn't change ever)
-        base_centered_unrotated = self.base_unrotated+cEst
-        base_centered_unrotated = np.asarray([[x.real, x.imag] for x in base_centered_unrotated])
-        xy1 = np.c_[base_centered_unrotated, np.ones_like(base_centered_unrotated[:,1])]
-        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        base_centered_unrotated_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        x = [int(x) for x in base_centered_unrotated_camera_coordinates[:,0]]
-        y = [int(y) for y in base_centered_unrotated_camera_coordinates[:,1]]
-        self.visArena('~plot', x, y, c='#FF4500', linestyle="--",alpha=.5)
+        # #Plot base for estimated position on left plot only (orientation doesn't change ever)
+        # base_centered_unrotated = self.base_unrotated+cEst
+        # base_centered_unrotated = np.asarray([[x.real, x.imag] for x in base_centered_unrotated])
+        # xy1 = np.c_[base_centered_unrotated, np.ones_like(base_centered_unrotated[:,1])]
+        # xy1 = np.dot(xy1,self.REF_TO_CAMERA)
+        # base_centered_unrotated_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
+        # x = [int(x) for x in base_centered_unrotated_camera_coordinates[:,0]]
+        # y = [int(y) for y in base_centered_unrotated_camera_coordinates[:,1]]
+        # self.visArena('~plot', x, y, c='#FF4500', linestyle="--",alpha=.5)

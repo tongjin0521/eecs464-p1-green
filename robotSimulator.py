@@ -25,7 +25,6 @@ if '-r' in sys.argv:
 else:
     from myRobotSimIX import RobotSim, RobotSimInterface
 from movePlans import MoveDistClass, LiftWheelsClass, TurnClass, Auto
-from ParticleFilter import ParticleFilter
 
 class RobotSimulatorApp( JoyApp ):
   """Concrete class RobotSimulatorApp <<singleton>>
@@ -67,10 +66,7 @@ class RobotSimulatorApp( JoyApp ):
     self.move = MoveDistClass(self, self.robSim)
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
-    #self.pfP = ParticleFilter(self, self.sensor)
-    #self.pfP.start()
-    self.autoP = Auto(self, self.robSim, self.sensor)#, self.pfP)#self.move, self.liftWheels, self.turn, self.pfP)
-    #self.autoP.start()
+    self.autoP = Auto(self, self.robSim, self.sensor)
 
   def showSensors( self ):
     """
@@ -97,6 +93,11 @@ class RobotSimulatorApp( JoyApp ):
     # Send message to waypointServer "as if" we were tagStreamer
     self.sock.sendto(msg.encode("ascii"), (self.srvAddr[0],APRIL_DATA_PORT))
 
+  def stop_all_plans(self):
+    self.autoP.stop()
+    self.move.stop()
+    self.turn.stop()
+
   def onEvent( self, evt ):
     #### DO NOT MODIFY --------------------------------------------
     # periodically, show the sensor reading we got from the waypointServer
@@ -106,55 +107,45 @@ class RobotSimulatorApp( JoyApp ):
       # generate simulated laser readings
     elif self.timeForLaser():
       self.robSim.logLaserValue(self.now)
-
     # update the robot and simulate the tagStreamer
     if self.timeForFrame():
       self.emitTagMessage()
     #### MODIFY FROM HERE ON ----------------------------------------
+    key_set = [K_a,K_UP,K_DOWN,K_SPACE,K_LEFT,K_RIGHT,K_r,K_q]
     if evt.type == KEYDOWN:
-      talk = False
-      say = "(say) " if talk else ""
-      da, dx = 18*(math.pi/180), 10
+      say = "(2022W-P1-GREEN) "
+      da, dx = 10 *(math.pi/180), 10
+      if evt.key in key_set:
+        self.stop_all_plans()
       if evt.key == K_a:
         self.autoP.start()
-        #self.autoP.active = not self.autoP.active
-        #print 'Auto status', self.autoP.active
         return progress(say + "Auto starting")
-      if not False: #self.autoP.active:
-        if evt.key == K_UP:
-          print('Last Waypoints: ', self.sensor.lastWaypoints)
-          self.move.dist = dx
-          self.turn.stop()
-          self.move.stop()
-          self.move.start()
-          return progress(say + "Moving Forward")
-        if evt.key == K_DOWN:
-          self.move.dist = -dx
-          self.turn.stop()
-          self.move.stop()
-          self.move.start()
-          return progress(say + "Moving Back")
-        if evt.key == K_SPACE:
-          self.move.stop()
-          self.liftWheels.start()
-          return progress(say + "Lifting Wheels")
-        if evt.key == K_LEFT and not self.turn.isRunning():
-          self.turn.absolute = False
-          self.turn.ang = da
-          self.move.stop()
-          self.turn.start()
-          return progress(say + "Turn left")
-        if evt.key == K_RIGHT and not self.turn.isRunning():
-          self.turn.absolute = False
-          self.turn.ang = -da
-          self.move.stop()
-          self.turn.start()
-          return progress(say + "Turn right")
-        if evt.key == K_s:
-          self.move.stop()
-          self.turn.stop()
-          self.autoP.stop()
-          return progress(say + "STOPPING")
+      if evt.key == K_UP:
+        self.move.dist = dx
+        self.move.start()
+        return progress(say + "Moving Forward")
+      if evt.key == K_DOWN:
+        self.move.dist = -dx
+        self.move.start()
+        return progress(say + "Moving Back")
+      if evt.key == K_SPACE:
+        self.liftWheels.start()
+        return progress(say + "Lifting Wheels")
+      if evt.key == K_LEFT:
+        self.turn.absolute = False
+        self.turn.ang = da
+        self.turn.start()
+        return progress(say + "Turn left")
+      if evt.key == K_RIGHT:
+        self.turn.absolute = False
+        self.turn.ang = -da
+        self.turn.start()
+        return progress(say + "Turn right")
+      if evt.key == K_r:
+        return progress(say + "RESET")
+      if evt.key == K_q:
+        progress("--------EDR--------")
+        self.stop()
     ### DO NOT MODIFY -----------------------------------------------
       else:# Use superclass to show any other events
         return JoyApp.onEvent(self,evt)
@@ -180,21 +171,31 @@ if __name__=="__main__":
     %s <host> <port>
         Connect to specified host on specified port
   """ % ((argv[0],)*4))
-  if '-r' in sys.argv:
-    sys.argv.remove('-r')
-    motorNames = {0x08:"wheelMotorFront",
-                  0x02:"wheelMotorBack",
-                  0x04:"liftServoFront",
-                  0x09:"liftServoBack",
-                  0x98:"spinMotor"}
-    robot = {'count':5, 'names': motorNames}
-  else:
-    robot = None
+  # if '-r' in sys.argv:
+  #   sys.argv.remove('-r')
+  #   motorNames = {0x08:"wheelMotorFront",
+  #                 0x02:"wheelMotorBack",
+  #                 0x04:"liftServoFront",
+  #                 0x09:"liftServoBack",
+  #                 0x98:"spinMotor"}
+  #   robot = {'count':5, 'names': motorNames}
+  # else:
+  #   robot = None
+  # cfg = {'windowSize' : [160,120]}
+  # if len(argv)>2:
+  #   app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),robot=robot,cfg=cfg)
+  # elif len(argv)==2:
+  #   app=RobotSimulatorApp(wphAddr=argv[1],robot=robot,cfg=cfg)
+  # else:
+  #   app=RobotSimulatorApp(robot=robot,cfg=cfg)
+  # app.run()
+
+  import sys
   cfg = {'windowSize' : [160,120]}
   if len(argv)>2:
-    app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),robot=robot,cfg=cfg)
+      app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),cfg=cfg)
   elif len(argv)==2:
-    app=RobotSimulatorApp(wphAddr=argv[1],robot=robot,cfg=cfg)
+      app=RobotSimulatorApp(wphAddr=argv[1],cfg=cfg)
   else:
-    app=RobotSimulatorApp(robot=robot,cfg=cfg)
+      app=RobotSimulatorApp(cfg=cfg)
   app.run()
