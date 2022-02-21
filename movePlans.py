@@ -96,7 +96,6 @@ class Auto(Plan):
         self.robSim = robSim
         self.sensorP = sensorP
         self.pos = [0, 0]
-        self.usePoseEstimateInsteadOfActualPose = True
 
     def behavior(self):
         # Move and Turn Fast/In 1 Step
@@ -104,11 +103,9 @@ class Auto(Plan):
         self.app.move.dur = 0.5
         self.app.turn.N = 1
         self.app.turn.dur = 0.0
-        time_waypoints = None
-        time_sensor = None
         reachedFirstWaypoint = 0
         attemptsToFindWaypoint = 0
-        maxAttempts = 3
+        maxAttempts = 1
         stepSize = 5
         original_dNoise = self.robSim.dNoise
         original_aNoise = self.robSim.aNoise
@@ -119,31 +116,13 @@ class Auto(Plan):
             yield self.forDuration(0.5)
         numWaypoints = len(self.sensorP.lastWaypoints[1])
         while len(self.sensorP.lastWaypoints[1]) > 1:
-            if self.usePoseEstimateInsteadOfActualPose:
-                maxAttempts = 1
-                self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
-                self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
-            else:
-                maxAttempts = 3
-                self.pos = c_[self.robSim.pos.real, self.robSim.pos.imag]
-                self.ang = c_[self.robSim.ang.real, self.robSim.ang.imag]
+            self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
+            self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
+
             self.ang /= LA.norm(self.ang)
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-            new_time_sensor, f_sensor, b_sensor = self.sensorP.lastSensor
-            # waypoint conversion
-            '''
-            waypoints = asarray(waypoints)
-            xy1 = c_[waypoints, ones_like(waypoints[:,1])]
-            xy1 = dot(xy1,self.robSim.REF_TO_CAMERA)
-            waypoints = (xy1[:,:2]/xy1[:,[2]])
-            '''
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
 
-            # # Check if waypoint info is relevent
-            # if time_waypoints == new_time_waypoints or time_sensor == new_time_sensor:
-            #    progress("Skipping waypoint info")
-            #    yield self.forDuration(1)
-            #    continue
             #We should get exactly to first waypoint in a single attempt
             if not reachedFirstWaypoint:
                 self.pos = c_[self.robSim.pos.real, self.robSim.pos.imag]
@@ -167,7 +146,7 @@ class Auto(Plan):
                 attemptsToFindWaypoint = 0
 
             # Spiral if out of attempts
-            if attemptsToFindWaypoint >= maxAttempts:
+            if attemptsToFindWaypoint >= 1:
                 progress('Running Spiral')
                 try:
                     self.app.move.dist = stepSize if attemptsToFindWaypoint == maxAttempts else self.app.move.dist
@@ -214,14 +193,9 @@ class Auto(Plan):
                 yield self.forDuration(2)
 
                 self.app.move.dist = distance
-                # print('Distance: ', distance)
-                #self.app.move.stop()
                 self.app.move.dur = 4
                 self.app.move.N = 5
                 self.app.move.start()
                 yield self.forDuration(5)
-
-            time_waypoints = new_time_waypoints
-            time_sensor    = new_time_sensor
             attemptsToFindWaypoint += 1
         yield
