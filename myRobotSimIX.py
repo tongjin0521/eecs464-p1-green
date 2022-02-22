@@ -106,21 +106,13 @@ class RobotSim( RobotSimInterface ):
         self.pos += self.ang * dist + noise
         self.posEst += self.angEst * dist
 
-    def turn(self,ang,absolute=False):
+    def turn(self,ang):
         if self.wheelsDown:
             self.liftWheels()
         # Turn by ang (plus noise)
         noise = randn()*self.aNoise
-        if absolute:
-            #Actual angle is relative to base angle
-            self.ang = np.exp(1j*(ang + noise))*self.baseAng
-            #In estimate, base angle and noise are 0
-            self.angEst = np.exp(1j*(ang))
-        else:
-            self.ang *= np.exp(1j*(ang + noise))
-            # self.angEst = self.ang*np.exp(1j*(ang + noise))
-            self.angEst *= np.exp(1j*(ang))
-            #self.angEst *= self.ang*np.exp(1j*noise)
+        self.ang *= np.exp(1j*(ang + noise))
+        self.angEst *= np.exp(1j*(ang))
 
     def liftWheels(self):
         #whenver wheels are lifted, add noise to the base angle
@@ -146,7 +138,7 @@ class RobotSim( RobotSimInterface ):
         c_camera = np.mean(self.tagPos)
 
         '''
-        #Get current position in referance coordinates
+        #Get current position in reference coordinates
         pnt = array([c.real, c.imag, 1.0])
         xy1 = dot(pnt, self.CAMERA_TO_REF)
         xy1_trans = (xy1[:2]/xy1[2]).T
