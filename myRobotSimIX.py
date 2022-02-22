@@ -48,10 +48,14 @@ class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         self.app = app
-        self.dNoise = 0.1 # Distance noise
-        self.aNoise = 0.02 # Angle noise
-        self.lNoise = 0.01 # Laser pointing noise
-        self.baseAngleNoise = 1*(math.pi/180)
+        # self.dNoise = 0.1 # Distance noise
+        # self.aNoise = 0.02 # Angle noise
+        # self.lNoise = 0.01 # Laser pointing noise
+        # self.baseAngleNoise = 1*(math.pi/180)
+        self.dNoise = 0.0 # Distance noise
+        self.aNoise = 0.00 # Angle noise
+        self.lNoise = 0.00 # Laser pointing noise
+        self.baseAngleNoise = 0.0
 
         #Handle coordiante transformation
         ## Reverse Homography

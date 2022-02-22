@@ -84,12 +84,6 @@ class Auto(Plan):
         self.pos = [0, 0]
 
     def behavior(self):
-        # Move and Turn Fast/In 1 Step
-        self.app.move.N = 1
-        self.app.move.dur = 0.5
-        self.app.turn.N = 1
-        self.app.turn.dur = 0.0
-        stepSize = 5
 
         ##get Waypoint data here
         while True:
@@ -99,100 +93,33 @@ class Auto(Plan):
             yield self.forDuration(0.5)
         numWaypoints = len(self.sensorP.lastWaypoints[1])
 
-
+        ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
 
+            ##fetch position and angle estimates as well as waypoint locations
             self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
             self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
-            
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
 
-            progress( "Waypoints: " + str(waypoints))
-            progress("position: " + str(self.pos))
-            progress("angle: " + str(self.ang))
-
+            ##compute angle and direction to turn and move
             difference = next_waypoint - self.pos
             distance = linalg.norm(difference)
-
-            # angle = np.angle(self.ang)[0][0]
-            # target_angle = np.angle(difference)[0][0]
             angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j)
             target_angle = np.angle(difference[0][0] + difference[0][1]*1j)
-            progress("differnece: " + str(difference[0][0] + difference[0][1]*1j))
-            progress("current angle: " + str(angle))
-            progress("desired angle: " + str(target_angle))
-
             turn_rads = target_angle - angle
 
-            progress("amount to turn: ", str(turn_rads))
-
+            ##execute turn
             self.app.turn.ang = turn_rads
             self.app.turn.dur = 1
             self.app.turn.N = 3
             self.app.turn.start()
             yield self.forDuration(2)
-            progress("angle: " + str(np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j)))
 
-
+            ##execute move
             self.app.move.dist = distance
             self.app.move.dur = 4
             self.app.move.N = 5
             self.app.move.start()
             yield self.forDuration(5)
-
-        # next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
-        # v = next_waypoint - dot(self.pos,[1,1j])
-        # distance = linalg.norm(v)
-        # direction_radians = math.atan2(v.imag, v.real)
-        
-
-        # self.app.turn.ang = direction_radians + self.robSim.angEst
-
-        # self.app.turn.dur = 1
-        # self.app.turn.N = 3
-        # self.app.turn.start()
-        # yield self.forDuration(2)
-
-
-
-
-
-
-
-
-        # while len(self.sensorP.lastWaypoints[1]) > 1:
-        #     self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
-        #     self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
-
-        #     self.ang /= linalg.norm(self.ang)
-        #     new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-        #     curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
-            
-        #     next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
-        #     v = next_waypoint - dot(self.pos,[1,1j])
-
-        #     distance = linalg.norm(v)
-        #     direction_radians = math.atan2(v.imag, v.real)
-
-        #     #if we hit a waypoint move guess and noisy robot pos to waypoint
-        #     if numWaypoints != len(self.sensorP.lastWaypoints[1]):
-        #         way_loc = dot(curr_waypoint,[1,1j])
-        #         self.robSim.posEst = way_loc
-        #         numWaypoints = len(self.sensorP.lastWaypoints[1])
-            
-        #     self.app.turn.absolute = True
-        #     self.app.turn.ang = direction_radians
-
-        #     #self.app.turn.stop()
-        #     self.app.turn.dur = 1
-        #     self.app.turn.N = 3
-        #     self.app.turn.start()
-        #     yield self.forDuration(2)
-
-        #     self.app.move.dist = distance
-        #     self.app.move.dur = 4
-        #     self.app.move.N = 5
-        #     self.app.move.start()
-        #     yield self.forDuration(5)
         yield
