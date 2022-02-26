@@ -44,21 +44,52 @@ except:
 from waypointShared import waypoints, corners, ROBOT_TAGID, ref, fitHomography
 from robotSimIX import RobotSimInterface
 
+
+####class that represents a particle
+class Particle:
+    def __init__(self, pos, angle, base, certainty):
+        self.pos = pos
+        self.angle = angle
+        self.base_angle = base
+        self.certainty = certainty
+
+
 class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         self.app = app
-        # self.dNoise = 0.1 # Distance noise
-        # self.aNoise = 0.02 # Angle noise
-        # self.lNoise = 0.01 # Laser pointing noise
-        # self.baseAngleNoise = 1*(math.pi/180)
-        self.dNoise = 0.0 # Distance noise
-        self.aNoise = 0.00 # Angle noise
-        self.lNoise = 0.00 # Laser pointing noise
-        self.baseAngleNoise = 0.0
+        
+        #self.real_distance_noise = 0.1 # Distance noise - likely higher magnitude
+        #self.real_angle_noise = 0.02 # Angle noise - difference in angle 
+        #self.real_base_noise = 0.01 - additional base noise for slipping or other movement
+        
+        #motor accuraccy is based on encoders about 3 deg acc best case
+        #noise in distance, then angle, then distance
+        #reset isnt exact at waypoint, it can anywhere within the tag
+        #we do have a state estimate that can be displayed but it is currently commented out
 
+
+        #real noises used to update real robot posisiton
+        self.real_distance_noise = 0.00001 # Distance noise
+        self.real_angle_noise = 0.00001 # Angle noise
+        self.real_stopping_noise = 0.00001 #this will update angle when stopping
+        self.real_base_noise = 0.00001 #base noise
+
+        #particle noises to update particle positions
+        self.particle_distance_noise = 0.001
+        self.particle_angle_noise = 0.001
+        self.particle_stopping_noise = 0.001
+        self.particle_base_noise = 0.001
+        
+        
+        
+        
+        
+        
+        
         #Handle coordiante transformation
         ## Reverse Homography
+##################SHOULD NOT NEED THIS OR A LOT OF IT###########################################################
         roi  = np.array([ np.mean(MSG_TEMPLATE[nmi],0) for nmi in corners ] )
         roi  = np.c_[roi, np.ones_like(roi[:,1])]
         self.CAMERA_TO_REF = fitHomography(roi, ref)
@@ -79,10 +110,15 @@ class RobotSim( RobotSimInterface ):
         self.wheelsDown = True
         self.laserBlocked = False
 
-        #Create variables to hold our estimates of our position
+        #Create Particles to hold our estimates of our position
         self.tagPosRefEst = self.tagPosRef
         self.posEst = self.pos
         self.angEst = self.ang
+        
+        ##TODO Here
+        ##create particle data structure
+        self.particles = []
+        self.particles.append(Particle(np.mean(tag), 1+0j, 1+0j, 1))
 
         rec_dim = [25, 10] # height, width
         base_dim = [18, 12]
@@ -106,29 +142,50 @@ class RobotSim( RobotSimInterface ):
         # Move in direction of self.ang
         #  If we assume Gaussian errors in velocity, distance error will grow
         #  as sqrt of goal distance
-        noise = (randn()+1j*randn())*self.dNoise*np.sqrt(abs(dist))
+        noise = (randn()+1j*randn())*self.real_distance_noise*np.sqrt(abs(dist))
         self.pos += self.ang * dist + noise
+        #noise = randn()*self.real_angle_noise
+        #self.ang *= np.exp(1j*(noise))
+
+        for particle in self.particles:
+            ## 1 random noise is added to direction in turn function
+            
+            ## 2 move each partcle with noise
+            noise = (randn()+1j*randn())*self.particle_distance_noise*np.sqrt(abs(dist))
+            particle.pos += particle.angle * dist + noise
+            
+            #3 add directional noise to each particle when stopping
+            noise = randn()*self.particle_angle_noise
+            particle.angle *= np.exp(1j*(noise))
         self.posEst += self.angEst * dist
 
     def turn(self,ang):
         if self.wheelsDown:
             self.liftWheels()
         # Turn by ang (plus noise)
-        noise = randn()*self.aNoise
+        noise = randn()*self.real_angle_noise
         self.ang *= np.exp(1j*(ang + noise))
+        for particle in self.particles:
+            #update angle
+            noise = randn()*self.particle_angle_noise
+            particle.angle *= np.exp(1j*(ang + noise))
         self.angEst *= np.exp(1j*(ang))
-
+        
     def liftWheels(self):
         #whenver wheels are lifted, add noise to the base angle
-        noise = randn()*self.baseAngleNoise
+        noise = randn()*self.real_base_noise
         self.baseAng *=  np.exp(1j*noise)
         #self.ang *= self.baseAng
         self.wheelsDown = not self.wheelsDown
+        for particle in self.particles:
+            noise = randn()*self.particle_base_noise
+            particle.base_angle *=  np.exp(1j*noise)
 
     def refreshState(self):
         # Compute tag points relative to tag center, with 1st point on real axis
         tag = self.zTag * self.ang + self.pos
         tagEst = self.zTag * self.angEst + self.posEst
+        #tagEst = self.zTag
         # New tag position is set by position and angle
         self.tagPosRef = np.c_[tag.real,tag.imag]
         #In order for waypontTask.py to work, self.tagPos needs to be in camera coordiantes
