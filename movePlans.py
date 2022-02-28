@@ -95,7 +95,12 @@ class Auto(Plan):
 
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
-
+            # TODO: 
+            #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
+            #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
+            #   3. What if we miss a waypoint?
+            #   4. blocked - how to turn to avoid blocking?
+            
             ##fetch position and angle estimates as well as waypoint locations
             self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
             self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
@@ -105,8 +110,8 @@ class Auto(Plan):
             ##compute angle and direction to turn and move
             difference = next_waypoint - self.pos
             distance = linalg.norm(difference)
-            angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j)
-            target_angle = np.angle(difference[0][0] + difference[0][1]*1j)
+            angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j) # radian
+            target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
             turn_rads = target_angle - angle
 
             ##execute turn

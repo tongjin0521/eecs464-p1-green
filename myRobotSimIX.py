@@ -4,6 +4,7 @@ Created on Thu Sep  4 20:31:13 2014
 
 @author: shrevzen-home
 """
+from cmath import pi
 import sys, os
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
@@ -44,15 +45,59 @@ except:
 from waypointShared import waypoints, corners, ROBOT_TAGID, ref, fitHomography
 from robotSimIX import RobotSimInterface
 
-
 ####class that represents a particle
 class Particle:
-    def __init__(self, pos, angle, base, certainty):
+    def __init__(self, pos, angle, weight):
         self.pos = pos
         self.angle = angle
-        self.base_angle = base
-        self.certainty = certainty
+        self.weight = weight
 
+class Particle_Filter:
+    # NOTE: we initialize when we reach the first waypoint and have turned to the second waypoint
+    def __init__(self, num_particles, init_pos, init_angle,init_pos_noise = 1,init_angle_noise = np.pi / 180 * 5):
+        self.dist_noise = init_pos_noise
+        self.angle_noise = init_angle_noise
+        assert(num_particles > 1)
+        self.num_particles = num_particles
+        self.particles = []
+        for i in range(self.num_particles):
+            init_pos_noise_i = (randn()+1j*randn())*init_pos_noise
+            init_angle_noise_i = np.exp(1j*randn()*init_angle_noise)
+            self.particles.append(Particle(pos = init_pos + init_pos_noise_i,angle = init_angle *init_angle_noise_i , weight = 1/ self.num_particles) )
+
+    def move_update(self,move_dist):
+        move_dist_noise = self.dist_noise
+        move_angle_noise = self.angle_noise
+        for particle_i in self.particles:
+            ## NOTE: add noise as dist increases (if needed)
+            move_dist_noise_i = (randn()+1j*randn())*move_dist_noise
+            move_angle_noise_i = np.exp(1j*randn()*move_angle_noise)
+            particle_i.pos +=  (particle_i.angle * move_angle_noise_i ) * move_dist + move_dist_noise_i
+            particle_i.angle *= move_angle_noise_i
+        
+    def turn_update(self,turn_angle):
+        turn_dist_noise = 0.001
+        turn_angle_noise = self.angle_noise
+        for particle_i in self.particles:
+            ## NOTE: add noise as angle increases (if needed)
+            turn_dist_noise_i = (randn()+1j*randn())*turn_dist_noise
+            turn_angle_noise_i = randn()*turn_angle_noise
+            particle_i.pos +=  turn_dist_noise_i
+            particle_i.angle *=  np.exp(1j*(turn_angle + turn_angle_noise_i))
+    
+    def estimated_pose(self):
+        particles_copy = self.particles.copy()
+        particles_copy.sort(key= lambda x: x.weight , reverse= True)
+        needed_particles_num = int(self.num_particles/10)
+        needed_particles = particles_copy[:needed_particles_num]
+        estimated_pos = 0 + 0j
+        estimated_ang = 0 + 0j
+        needed_total_weight = 0
+        for particle_i in needed_particles:
+            estimated_pos += particle_i.pos * particle_i.weight
+            estimated_ang += particle_i.ang * particle_i.weight
+            needed_total_weight += particle_i.weight
+        return estimated_pos/needed_total_weight, estimated_ang/needed_total_weight
 
 class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
@@ -74,19 +119,8 @@ class RobotSim( RobotSimInterface ):
         self.real_angle_noise = 0.00001 # Angle noise
         self.real_stopping_noise = 0.00001 #this will update angle when stopping
         self.real_base_noise = 0.00001 #base noise
+        
 
-        #particle noises to update particle positions
-        self.particle_distance_noise = 0.001
-        self.particle_angle_noise = 0.001
-        self.particle_stopping_noise = 0.001
-        self.particle_base_noise = 0.001
-        
-        
-        
-        
-        
-        
-        
         #Handle coordiante transformation
         ## Reverse Homography
 ##################SHOULD NOT NEED THIS OR A LOT OF IT###########################################################
@@ -117,17 +151,16 @@ class RobotSim( RobotSimInterface ):
         
         ##TODO Here
         ##create particle data structure
-        self.particles = []
-        self.particles.append(Particle(np.mean(tag), 1+0j, 1+0j, 1))
+        self.pf = Particle_Filter(200,self.pos,self.ang,init_pos_noise=1,init_angle_noise= 0)
 
         rec_dim = [25, 10] # height, width
         base_dim = [18, 12]
         scale_f = 1/2
-        self.rec_unrotated = np.dot([[1,scale_f*1j],
-                                    [1,-scale_f*1j],
-                                    [-1,-scale_f*1j],
-                                    [-1,scale_f*1j],
-                                    [1,scale_f*1j]],
+        self.rec_unrotated = np.dot([[1,scale_f/2*1j],
+                                    [1,-scale_f/2*1j],
+                                    [-1,-scale_f *1j],
+                                    [-1,scale_f *1j],
+                                    [1,scale_f/2*1j]],
                                     rec_dim)
         self.base_unrotated = np.dot([[1,1j],
                                     [1,-1j],
@@ -146,17 +179,7 @@ class RobotSim( RobotSimInterface ):
         self.pos += self.ang * dist + noise
         #noise = randn()*self.real_angle_noise
         #self.ang *= np.exp(1j*(noise))
-
-        for particle in self.particles:
-            ## 1 random noise is added to direction in turn function
-            
-            ## 2 move each partcle with noise
-            noise = (randn()+1j*randn())*self.particle_distance_noise*np.sqrt(abs(dist))
-            particle.pos += particle.angle * dist + noise
-            
-            #3 add directional noise to each particle when stopping
-            noise = randn()*self.particle_angle_noise
-            particle.angle *= np.exp(1j*(noise))
+        self.pf.move_update(dist)
         self.posEst += self.angEst * dist
 
     def turn(self,ang):
@@ -165,10 +188,7 @@ class RobotSim( RobotSimInterface ):
         # Turn by ang (plus noise)
         noise = randn()*self.real_angle_noise
         self.ang *= np.exp(1j*(ang + noise))
-        for particle in self.particles:
-            #update angle
-            noise = randn()*self.particle_angle_noise
-            particle.angle *= np.exp(1j*(ang + noise))
+        self.pf.turn_update(ang)
         self.angEst *= np.exp(1j*(ang))
         
     def liftWheels(self):
@@ -177,9 +197,6 @@ class RobotSim( RobotSimInterface ):
         self.baseAng *=  np.exp(1j*noise)
         #self.ang *= self.baseAng
         self.wheelsDown = not self.wheelsDown
-        for particle in self.particles:
-            noise = randn()*self.particle_base_noise
-            particle.base_angle *=  np.exp(1j*noise)
 
     def refreshState(self):
         # Compute tag points relative to tag center, with 1st point on real axis
@@ -290,6 +307,18 @@ class RobotSim( RobotSimInterface ):
         y = [int(y) for y in base_centered_camera_coordinates[:,1]]
         self.visRobot('~plot', x, y, c='g')
         self.visArena('~plot', x, y, c='g', alpha=.5)
+
+        #Convert particles to camera coordinates for plotting
+        particles_pos = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+        particles_pos = np.c_[particles_pos,np.ones_like(particles_pos[:,1])]
+        particles_pos = np.dot(particles_pos,self.REF_TO_CAMERA)
+        camera_particle_pos = (particles_pos[:,:2] / particles_pos[:,[2]])
+        x = [int(x) for x in camera_particle_pos[:,0]]
+        y = [int(y) for y in camera_particle_pos[:,1]]
+        self.visRobot('~scatter',x,y,c='g')
+        self.visArena('~scatter',x,y,c='g')
+
+
 
         # #Plot base for estimated position on left plot only (orientation doesn't change ever)
         # base_centered_unrotated = self.base_unrotated+cEst
