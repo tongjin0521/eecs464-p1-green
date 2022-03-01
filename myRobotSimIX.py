@@ -95,7 +95,7 @@ class Particle_Filter:
         needed_total_weight = 0
         for particle_i in needed_particles:
             estimated_pos += particle_i.pos * particle_i.weight
-            estimated_ang += particle_i.ang * particle_i.weight
+            estimated_ang += particle_i.angle * particle_i.weight
             needed_total_weight += particle_i.weight
         return estimated_pos/needed_total_weight, estimated_ang/needed_total_weight
 

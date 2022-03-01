@@ -116,6 +116,7 @@ class Auto(Plan):
             target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
             turn_rads = target_angle - angle
             '''
+
             ##new version using PF state estimate
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
@@ -125,8 +126,18 @@ class Auto(Plan):
             difference = next_waypoint - self.pos
             distance = linalg.norm(difference)
             #angle
-            target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
-            turn_rads = target_angle - self.ang
+            angle = np.angle(self.ang.real + self.ang.imag*1j) # radian
+            target_angle = np.angle(difference[0]) # radian
+            turn_rads = target_angle - angle
+            
+            #debug
+            '''
+            progress("angle: " + str(angle))
+            progress("pos: " + str(self.pos))
+            progress("diff: " + str(difference))
+            progress("target: " + str(target_angle))
+            progress("turn: " + str(turn_rads))
+            '''
 
             #if we think we are at a waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
