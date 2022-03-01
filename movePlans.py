@@ -102,29 +102,55 @@ class Auto(Plan):
             #   4. blocked - how to turn to avoid blocking?
             
             ##fetch position and angle estimates as well as waypoint locations
+            #TODO get this from PF and determine distance desired
             self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
             self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
 
             ##compute angle and direction to turn and move
+            #TODO get this from PF and determine if turn is desired
             difference = next_waypoint - self.pos
             distance = linalg.norm(difference)
             angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j) # radian
             target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
             turn_rads = target_angle - angle
 
-            ##execute turn
-            self.app.turn.ang = turn_rads
-            self.app.turn.dur = 1
-            self.app.turn.N = 3
-            self.app.turn.start()
-            yield self.forDuration(2)
+            #if we think we are at a waypoint
+            #TODO get position from waypoint
+            min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
+            if(distance < min_distance_threshold):
+                #TODO calculate covariance 
+                #turn and move along this direction
+                #possibly add spiral or more robust failure case
+                progress("failed to reach waypoint in standard method")
 
-            ##execute move
-            self.app.move.dist = distance
-            self.app.move.dur = 4
-            self.app.move.N = 5
-            self.app.move.start()
-            yield self.forDuration(5)
+            #default case for movement to waypoint
+            else:
+                ##execute turn#############################################################
+                #min turn angle of 3 degrees - approx acc. of servo
+                # TODO tune this value more
+                min_turn_angle = 3.0 * 3.14159 / 180.0
+                progress(str(turn_rads))
+                if(abs(turn_rads) > min_turn_angle):
+                    progress("turn")
+                    self.app.turn.ang = turn_rads
+                    self.app.turn.dur = 1
+                    self.app.turn.N = 3
+                    self.app.turn.start()
+                    yield self.forDuration(2)
+
+
+                ##execute move##############################################################
+                #only move by at most step_size
+                step_size = 5
+                if(distance < step_size):
+                    self.app.move.dist = distance
+                else:
+                    self.app.move.dist = step_size
+
+                self.app.move.dur = 4
+                self.app.move.N = 5
+                self.app.move.start()
+                yield self.forDuration(5)
         yield
