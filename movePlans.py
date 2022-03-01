@@ -92,7 +92,6 @@ class Auto(Plan):
                 break
             yield self.forDuration(0.5)
         numWaypoints = len(self.sensorP.lastWaypoints[1])
-
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -100,7 +99,9 @@ class Auto(Plan):
             #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
             #   3. What if we miss a waypoint?
             #   4. blocked - how to turn to avoid blocking?
-            
+            #   5. if we are really close to the target, we tend to have great angle diff, but in that way, we actually dont need to change our angle
+            #   6. following point 5, we may want to turn to the desired angle when we get close to the target and turn it once for all
+
             ##old version using basic state estimate
             ''' 
             ##fetch position and angle estimates as well as waypoint locations
@@ -120,25 +121,34 @@ class Auto(Plan):
             ##new version using PF state estimate
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
-
+    
             self.pos, self.ang = self.robSim.pf.estimated_pose()
+            if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
+                # we hit a waypoint and are heading for a new one
+                progress("WAYPOINT REACHED")
+                self.robSim.pf.waypoint_update(self.pos,self.ang)
+                numWaypoints = len(self.sensorP.lastWaypoints[1])
+            
             #position / distance
-            difference = next_waypoint - self.pos
+            difference = [next_waypoint[0] - self.pos.real, (next_waypoint[1] - self.pos.imag)]
             distance = linalg.norm(difference)
             #angle
             angle = np.angle(self.ang.real + self.ang.imag*1j) # radian
-            target_angle = np.angle(difference[0]) # radian
+            target_angle = np.angle(next_waypoint[0] - self.pos.real + (next_waypoint[1] - self.pos.imag) * 1j) # radian
             turn_rads = target_angle - angle
             
             #debug
             '''
-            progress("angle: " + str(angle))
+            progress("------------------------")
             progress("pos: " + str(self.pos))
+            progress("target_pos: " + str(next_waypoint))
             progress("diff: " + str(difference))
-            progress("target: " + str(target_angle))
+            progress("dist: " + str(distance))
+            progress("angle: " + str(angle))
+            progress("target_ang: " + str(target_angle))
             progress("turn: " + str(turn_rads))
+            progress("------------------------")
             '''
-
             #if we think we are at a waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
             if(distance < min_distance_threshold):
@@ -152,9 +162,9 @@ class Auto(Plan):
                 ##execute turn#############################################################
                 #min turn angle of 3 degrees - approx acc. of servo
                 # TODO tune this value more
-                min_turn_angle = 3.0 * 3.14159 / 180.0
-                progress(str(turn_rads))
-                if(abs(turn_rads) > min_turn_angle):
+                min_turn_angle = 3.0 * np.pi / 180.0
+                # progress(str(turn_rads))
+                if(abs(turn_rads) > min_turn_angle and distance > 5):
                     progress("turn")
                     self.app.turn.ang = turn_rads
                     self.app.turn.dur = 1

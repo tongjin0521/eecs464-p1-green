@@ -5,6 +5,7 @@ Created on Thu Sep  4 20:31:13 2014
 @author: shrevzen-home
 """
 from cmath import pi
+from functools import total_ordering
 import sys, os
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
@@ -57,6 +58,7 @@ class Particle_Filter:
     def __init__(self, num_particles, init_pos, init_angle,init_pos_noise = 1,init_angle_noise = np.pi / 180 * 5):
         self.dist_noise = init_pos_noise
         self.angle_noise = init_angle_noise
+
         assert(num_particles > 1)
         self.num_particles = num_particles
         self.particles = []
@@ -66,8 +68,9 @@ class Particle_Filter:
             self.particles.append(Particle(pos = init_pos + init_pos_noise_i,angle = init_angle *init_angle_noise_i , weight = 1/ self.num_particles) )
 
     def move_update(self,move_dist):
-        move_dist_noise = self.dist_noise
-        move_angle_noise = self.angle_noise
+        move_dist_noise = 0.5
+        move_angle_noise = np.pi / 180 * 0.5
+
         for particle_i in self.particles:
             ## NOTE: add noise as dist increases (if needed)
             move_dist_noise_i = (randn()+1j*randn())*move_dist_noise
@@ -77,18 +80,41 @@ class Particle_Filter:
         
     def turn_update(self,turn_angle):
         turn_dist_noise = 0.001
-        turn_angle_noise = self.angle_noise
+        turn_angle_noise = np.pi / 180 * 1
+
         for particle_i in self.particles:
             ## NOTE: add noise as angle increases (if needed)
             turn_dist_noise_i = (randn()+1j*randn())*turn_dist_noise
             turn_angle_noise_i = randn()*turn_angle_noise
             particle_i.pos +=  turn_dist_noise_i
             particle_i.angle *=  np.exp(1j*(turn_angle + turn_angle_noise_i))
-    
+
+    def waypoint_update(self,waypoint_pos,waypoint_angle):
+        waypoint_dist_noise = self.dist_noise
+        waypoint_angle_noise = self.angle_noise
+        previous_particles_num = int(self.num_particles/10 * 2)
+
+        self.particles.sort(key= lambda x: x.weight , reverse= True)        
+        new_particles_num = self.num_particles - previous_particles_num
+        self.particles = self.normalized_particles(self.particles[:previous_particles_num])
+        for i in range(new_particles_num):
+            waypoint_pos_noise_i = (randn()+1j*randn())*waypoint_dist_noise
+            waypoint_angle_noise_i = np.exp(1j*randn()*waypoint_angle_noise)
+            self.particles.append(Particle(pos = waypoint_pos + waypoint_pos_noise_i,angle = waypoint_angle *waypoint_angle_noise_i , weight = 1/ self.num_particles) )
+       
+    def normalized_particles(self,unnomarlized_particles):
+        total_weight = 0
+        for particle_i in unnomarlized_particles:
+            total_weight += particle_i.weight
+        for particle_i in unnomarlized_particles:
+            particle_i.weight *= len(unnomarlized_particles) * 1 / (self.num_particles * total_weight)
+        return unnomarlized_particles
+
     def estimated_pose(self):
+        needed_particles_num = int(self.num_particles/10)
+
         particles_copy = self.particles.copy()
         particles_copy.sort(key= lambda x: x.weight , reverse= True)
-        needed_particles_num = int(self.num_particles/10)
         needed_particles = particles_copy[:needed_particles_num]
         estimated_pos = 0 + 0j
         estimated_ang = 0 + 0j
@@ -98,6 +124,8 @@ class Particle_Filter:
             estimated_ang += particle_i.angle * particle_i.weight
             needed_total_weight += particle_i.weight
         return estimated_pos/needed_total_weight, estimated_ang/needed_total_weight
+    
+   
 
 class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
@@ -149,9 +177,8 @@ class RobotSim( RobotSimInterface ):
         self.posEst = self.pos
         self.angEst = self.ang
         
-        ##TODO Here
         ##create particle data structure
-        self.pf = Particle_Filter(200,self.pos,self.ang,init_pos_noise=1,init_angle_noise= 0)
+        self.pf = Particle_Filter(200,self.pos,self.ang,init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
 
         rec_dim = [25, 10] # height, width
         base_dim = [18, 12]
@@ -198,13 +225,31 @@ class RobotSim( RobotSimInterface ):
         #self.ang *= self.baseAng
         self.wheelsDown = not self.wheelsDown
 
+    def plot_rect(self,coordinates,plt = "~plot",color = 'r',ls='-',both= False):
+        # Tranfsorm to camera coordiantes
+        xy1 = np.c_[coordinates, np.ones_like(coordinates[:,1])]
+        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
+        rec_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
+        x = [int(x) for x in rec_centered_camera_coordinates[:,0]]
+        y = [int(y) for y in rec_centered_camera_coordinates[:,1]]
+        if plt == "~plot":
+            if both:
+                self.visRobot(plt, x, y, c=color,linestyle=ls)
+            self.visArena(plt, x, y, c=color,linestyle=ls, alpha=.5)
+        elif plt == "~scatter":
+            if both:
+                self.visRobot(plt, x, y, c=color)
+            self.visArena(plt, x, y, c=color)
+        else:
+            print("WARNING - WRONG PLOT STYLE")
+
     def refreshState(self):
         # Compute tag points relative to tag center, with 1st point on real axis
         tag = self.zTag * self.ang + self.pos
         tagEst = self.zTag * self.angEst + self.posEst
         #tagEst = self.zTag
         # New tag position is set by position and angle
-        self.tagPosRef = np.c_[tag.real,tag.imag]
+        self.tagPosRef = np.c_[tagEst.real,tagEst.imag]
         #In order for waypontTask.py to work, self.tagPos needs to be in camera coordiantes
         xy1 = np.c_[self.tagPosRef, np.ones_like(self.tagPosRef[:,1])]
         xy1 = np.dot(xy1,self.REF_TO_CAMERA)
@@ -271,61 +316,16 @@ class RobotSim( RobotSimInterface ):
         # We can call any plot axis class methods, e.g. grid
         self.visArena('grid',1)
 
-        ## Simplify into function? Or make math easier?
-        #Convert rectangle to camera coordinates for plotting
-        rec = self.rec_unrotated*self.ang
-        rec_centered = rec+c
-        rec_centered = np.asarray([[x.real, x.imag] for x in rec_centered])
-        # Tranfsorm to camera coordiantes
-        xy1 = np.c_[rec_centered, np.ones_like(rec_centered[:,1])]
-        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        rec_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        x = [int(x) for x in rec_centered_camera_coordinates[:,0]]
-        y = [int(y) for y in rec_centered_camera_coordinates[:,1]]
-        self.visRobot('~plot', x, y, c='b')
-        self.visArena('~plot', x, y, c='b', alpha=.5)
+        ## TODO: Simplify into function? Or make math easier?
 
-        # #Plot dashed rectangle indicating estimated position on the left plot (using ref coordinates)
-        # recEst = self.rec_unrotated*self.angEst
-        # rec_centeredEst = recEst+cEst
-        # rec_centeredEst = np.asarray([[x.real, x.imag] for x in rec_centeredEst])
-        # xy1 = np.c_[rec_centeredEst, np.ones_like(rec_centeredEst[:,1])]
-        # xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        # rec_centeredEst_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        # x = [int(x) for x in rec_centeredEst_camera_coordinates[:,0]]
-        # y = [int(y) for y in rec_centeredEst_camera_coordinates[:,1]]
-        # self.visArena('~plot',x,y,c='b',linestyle="--", alpha=.5)
+        ## ------real robot------ dashed lines
+        # self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.angEst+cEst]),plt = "~plot", color = 'b',ls="--", both = False)
+        # self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + cEst]),plt = "~plot", color='g',ls = "--", both = False)
 
-        #Convert base to camera coordinates for plotting
-        base = self.base_unrotated*self.baseAng
-        base_centered = base+c
-        base_centered = np.asarray([[x.real, x.imag] for x in base_centered])
-        xy1 = np.c_[base_centered, np.ones_like(base_centered[:,1])]
-        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        base_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        x = [int(x) for x in base_centered_camera_coordinates[:,0]]
-        y = [int(y) for y in base_centered_camera_coordinates[:,1]]
-        self.visRobot('~plot', x, y, c='g')
-        self.visArena('~plot', x, y, c='g', alpha=.5)
-
-        #Convert particles to camera coordinates for plotting
-        particles_pos = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
-        particles_pos = np.c_[particles_pos,np.ones_like(particles_pos[:,1])]
-        particles_pos = np.dot(particles_pos,self.REF_TO_CAMERA)
-        camera_particle_pos = (particles_pos[:,:2] / particles_pos[:,[2]])
-        x = [int(x) for x in camera_particle_pos[:,0]]
-        y = [int(y) for y in camera_particle_pos[:,1]]
-        self.visRobot('~scatter',x,y,c='g')
-        self.visArena('~scatter',x,y,c='g')
-
-
-
-        # #Plot base for estimated position on left plot only (orientation doesn't change ever)
-        # base_centered_unrotated = self.base_unrotated+cEst
-        # base_centered_unrotated = np.asarray([[x.real, x.imag] for x in base_centered_unrotated])
-        # xy1 = np.c_[base_centered_unrotated, np.ones_like(base_centered_unrotated[:,1])]
-        # xy1 = np.dot(xy1,self.REF_TO_CAMERA)
-        # base_centered_unrotated_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
-        # x = [int(x) for x in base_centered_unrotated_camera_coordinates[:,0]]
-        # y = [int(y) for y in base_centered_unrotated_camera_coordinates[:,1]]
-        # self.visArena('~plot', x, y, c='#FF4500', linestyle="--",alpha=.5)
+        ## ------PF robot------ real lines 
+        self.plot_rect(np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles]),plt="~scatter", color = 'g',both = True)
+        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.ang + self.pos]), plt="~plot", color = "r",both = True)
+        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + self.pos]), plt="~plot", color = "y", both = True)
+        # print("----")
+        # print(cEst)
+        # print(self.pos)
