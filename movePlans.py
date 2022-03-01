@@ -101,23 +101,34 @@ class Auto(Plan):
             #   3. What if we miss a waypoint?
             #   4. blocked - how to turn to avoid blocking?
             
+            ##old version using basic state estimate
+            ''' 
             ##fetch position and angle estimates as well as waypoint locations
-            #TODO get this from PF and determine distance desired
             self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
             self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
 
             ##compute angle and direction to turn and move
-            #TODO get this from PF and determine if turn is desired
             difference = next_waypoint - self.pos
             distance = linalg.norm(difference)
             angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j) # radian
             target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
             turn_rads = target_angle - angle
+            '''
+            ##new version using PF state estimate
+            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
+
+            self.pos, self.ang = self.robSim.pf.estimated_pose()
+            #position / distance
+            difference = next_waypoint - self.pos
+            distance = linalg.norm(difference)
+            #angle
+            target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
+            turn_rads = target_angle - self.ang
 
             #if we think we are at a waypoint
-            #TODO get position from waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
             if(distance < min_distance_threshold):
                 #TODO calculate covariance 
