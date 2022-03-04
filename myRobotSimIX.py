@@ -7,6 +7,7 @@ Created on Thu Sep  4 20:31:13 2014
 from cmath import pi
 from functools import total_ordering
 import sys, os
+from unittest import result
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
 
@@ -15,10 +16,11 @@ from json import dumps as json_dumps
 import numpy as np
 from numpy.linalg import svd
 from numpy.random import randn
-#from waypointShared import *
+# from waypointShared import *
 
 from pdb import set_trace as DEBUG
 import math
+import random
 
 DEFAULT_MSG_TEMPLATE = {
     0 : [[2016, 1070], [1993, 1091], [2022, 1115], [2044, 1093]],
@@ -90,6 +92,7 @@ class Particle_Filter:
             particle_i.angle *=  np.exp(1j*(turn_angle + turn_angle_noise_i))
 
     def waypoint_update(self,waypoint_pos,waypoint_angle):
+        assert(len(self.particles) == self.num_particles)
         waypoint_dist_noise = self.dist_noise
         waypoint_angle_noise = self.angle_noise
         previous_particles_num = int(self.num_particles/10 * 2)
@@ -101,7 +104,85 @@ class Particle_Filter:
             waypoint_pos_noise_i = (randn()+1j*randn())*waypoint_dist_noise
             waypoint_angle_noise_i = np.exp(1j*randn()*waypoint_angle_noise)
             self.particles.append(Particle(pos = waypoint_pos + waypoint_pos_noise_i,angle = waypoint_angle *waypoint_angle_noise_i , weight = 1/ self.num_particles) )
-       
+        assert(len(self.particles) == self.num_particles)
+
+    def resample_particles(self):
+        curr_pos,curr_ang = self.estimated_pose()
+        assert(len(self.particles) == self.num_particles)
+        resample_pos_noise = self.dist_noise
+        resample_angle_noise = self.angle_noise
+        num_new_particles = int( 0.4 * self.num_particles)
+        num_old_particles = self.num_particles - num_new_particles
+        result_particles = []
+        r = random.random() * 1 / self.num_particles
+        c = self.particles[0].weight
+        i = 0
+        for m in range(1,num_new_particles+1):
+            u = r + (m - 1)* 1 / self.num_particles
+            # print(u,c,m,i)
+            while ( u > c):
+                i += 1
+                c += self.particles[i].weight
+            result_particles.append(Particle(pos = self.particles[i].pos, angle= self.particles[i].angle, weight = 1 / self.num_particles))
+
+        for m in range(num_old_particles):
+            resample_pos_noise_i = (randn()+1j*randn())*resample_pos_noise
+            resample_angle_noise_i = np.exp(1j*randn()*resample_angle_noise)
+            result_particles.append(Particle(pos = curr_pos + resample_pos_noise_i,angle = curr_ang *resample_angle_noise_i , weight = 1/ self.num_particles) )  
+        self.particles = result_particles
+        assert(len(self.particles) == self.num_particles)
+
+    def line_dist(self,c,a,b):
+        p = np.array([c.real,c.imag])
+        lp1 = np.array([a.real,a.imag])
+        lp2 = np.array([b.real,b.imag])
+        var1 = lp2[1] - lp1[1]
+        var2 = lp1[0] - lp2[0]
+        var3 = (lp1[1] - lp2[1]) * lp1[0] + (lp2[0] - lp1[0]) * lp1[1]
+        res = np.abs(var1 * p[0] + var2 * p[1] + var3) / np.sqrt(var1**2 + var2**2)
+        res0 = 1/(1+res**2)
+        # res1 = np.asarray(res0.clip(0,0.9999)*256, np.uint8)
+        return res0
+
+
+    def sensor_update(self,sensor,last_waypoint,next_waypoint,REF_TO_CAMERA):
+        assert(len(self.particles) == self.num_particles)
+        last_waypoint = last_waypoint[0] + last_waypoint[1]*1j
+        next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
+        ts,f,b = sensor.lastSensor
+        max_weight = 0
+        sensor_sum = f + b
+        for i in range(self.num_particles):
+            # if i %20 ==0:
+            #     print(self.particles[i].pos)
+            #     print(self.particles[i].pos - self.particles[i].angle * 0.1)
+            #     print(self.particles[i].pos + self.particles[i].angle * 0.1)
+            # TODO: TAG LENGTH 
+            estimated_f = self.particles[i].pos - self.particles[i].angle * 10
+            estimated_b = self.particles[i].pos + self.particles[i].angle * 10
+            # coordinates = np.asarray([[estimated_f.real,estimated_f.imag],[estimated_b.real,estimated_b.imag],next_waypoint,last_waypoint])
+            # xy1 = np.c_[coordinates, np.ones_like(coordinates[:,1])]
+            # xy1 = np.dot(xy1,REF_TO_CAMERA)
+            # rec_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
+            # print(rec_centered_camera_coordinates.shape)
+            # estimated_f = rec_centered_camera_coordinates[0,0] + rec_centered_camera_coordinates[0,1] * 1j
+            # estimated_b = rec_centered_camera_coordinates[1,0] + rec_centered_camera_coordinates[1,1] * 1j
+            # cam_next_waypoint = rec_centered_camera_coordinates[2,0] + rec_centered_camera_coordinates[2,1] * 1j
+            # cam_last_waypoint = rec_centered_camera_coordinates[3,0] + rec_centered_camera_coordinates[3,1] * 1j
+            # print(estimated_f,estimated_b,cam_next_waypoint,cam_last_waypoint)
+            estimated_f = self.line_dist(estimated_f,last_waypoint,next_waypoint)
+            estimated_b = self.line_dist(estimated_b,last_waypoint,next_waypoint)
+            # estimated_sum = estimated_f + estimated_b
+            # estimated_f = estimated_f / (estimated_sum) * sensor_sum
+            # estimated_b = estimated_b / (estimated_sum) * sensor_sum
+            # if i % 20 == 0:
+            print(f,b)
+            print(estimated_f,estimated_b)
+            print("--------")
+            self.particles[i].weight = np.sqrt((estimated_f - f)**2 + (estimated_b - b )**2)
+        self.particles = self.normalized_particles(self.particles)
+        assert(len(self.particles) == self.num_particles)
+
     def normalized_particles(self,unnomarlized_particles):
         total_weight = 0
         for particle_i in unnomarlized_particles:
@@ -128,10 +209,11 @@ class Particle_Filter:
    
 
 class RobotSim( RobotSimInterface ):
-    def __init__(self, app=None, *args, **kw):
+    def __init__(self, app=None, sensor = None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         self.app = app
-        
+        self.sensor = sensor
+        self.sensor_ts = -1
         #self.real_distance_noise = 0.1 # Distance noise - likely higher magnitude
         #self.real_angle_noise = 0.02 # Angle noise - difference in angle 
         #self.real_base_noise = 0.01 - additional base noise for slipping or other movement
@@ -244,6 +326,15 @@ class RobotSim( RobotSimInterface ):
             print("WARNING - WRONG PLOT STYLE")
 
     def refreshState(self):
+        # update particles
+        
+        # ts,f,b = self.sensor.lastSensor
+        # if f!=None and b!=None and self.sensor_ts!= ts and f * b > 0 and ((f+b) > 10) :
+        #     self.sensor_ts = ts
+        #     self.pf.resample_particles()
+        #     new_time_waypoints, waypoints = self.sensor.lastWaypoints
+        #     self.pf.sensor_update(self.sensor,waypoints[0],waypoints[1],self.REF_TO_CAMERA)
+
         # Compute tag points relative to tag center, with 1st point on real axis
         tag = self.zTag * self.ang + self.pos
         tagEst = self.zTag * self.angEst + self.posEst
@@ -323,9 +414,9 @@ class RobotSim( RobotSimInterface ):
         # self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + cEst]),plt = "~plot", color='g',ls = "--", both = False)
 
         ## ------PF robot------ real lines 
-        self.plot_rect(np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles]),plt="~scatter", color = 'g',both = True)
-        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.ang + self.pos]), plt="~plot", color = "r",both = True)
-        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + self.pos]), plt="~plot", color = "y", both = True)
+        self.plot_rect(np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles]),plt="~scatter", color = 'darkseagreen',both = True)
+        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.ang + self.pos]), plt="~plot", color = "b",both = True)
+        self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + self.pos]), plt="~plot", color = "g", both = True)
         # print("----")
         # print(cEst)
         # print(self.pos)
