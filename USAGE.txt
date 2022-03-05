@@ -1,4 +1,4 @@
-Hands-on Robotics 2020 Blue Team - Usage
+Hands-on Robotics 2020 Green Team - Usage
 
 Instruction on how to run the code:
 ## In a terminal window

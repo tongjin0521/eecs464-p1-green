@@ -21,10 +21,9 @@ import math
 # Added or modified
 if '-r' in sys.argv:
     print('Using real robot')
-    from myRobotRealIX import RobotSim, RobotSimInterface
+    from myRobotRealIX import RobotSim, RobotSimInterface, MoveForward, LiftWheels, Turn
 else:
     from myRobotSimIX import RobotSim, RobotSimInterface
-from movePlans import MoveDistClass, LiftWheelsClass, TurnClass, Auto
 
 class RobotSimulatorApp( JoyApp ):
   """Concrete class RobotSimulatorApp <<singleton>>
@@ -63,9 +62,10 @@ class RobotSimulatorApp( JoyApp ):
     self.T0 = self.now
     ### MODIFY FROM HERE ------------------------------------------
     self.robSim = RobotSim(fn=None, app=self)
-    self.move = MoveDistClass(self, self.robSim)
-    self.liftWheels = LiftWheelsClass(self, self.robSim)
-    self.turn = TurnClass(self, self.robSim)
+    #Change movement classes
+    self.move = MoveForward(self, self.robSim)
+    self.liftWheels = LiftWheels(self, self.robSim)
+    self.turn = Turn(self, self.robSim)
     self.autoP = Auto(self, self.robSim, self.sensor)
 
   def showSensors( self ):
