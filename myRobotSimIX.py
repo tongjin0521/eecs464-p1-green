@@ -56,6 +56,7 @@ def about_equal(a, b, noise):
     else:
         return False
 
+#re maps float from 'left' range to 'right' range
 def translate(value, leftMin, leftMax, rightMin, rightMax):
     # Figure out how 'wide' each range is
     leftSpan = leftMax - leftMin
@@ -183,9 +184,14 @@ class Particle_Filter:
         else:
             real_dist = (measured_f + measured_b)/2
         
+        max_sense = 0
         #for particle in self.particles:
         for i in range(0, len(self.particles)):
-            particle_distance = self.Sensor.sense(None, self.particles[i].pos, a, b) ##TODO
+            #particle_distance = self.Sensor.sense(None, self.particles[i].pos, a, b) ##TODO
+            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 6.816))
+            #print(particle_distance)
+            if(particle_distance > max_sense):
+                max_sense = particle_distance
             normalized_distance = abs(particle_distance - real_dist) / 255.0
             scale_factor = (1 - normalized_distance)
             if(about_equal(real_dist, particle_distance, noise_est)):
@@ -193,7 +199,8 @@ class Particle_Filter:
             else:
                 self.particles[i].weight *= scale_factor
         self.particles = self.normalized_particles(self.particles)
-        print(str(max(x.weight for x in self.particles)))
+        #print(max_sense)
+        print("max particle: " + str(max(x.weight for x in self.particles)))
 
 
 
