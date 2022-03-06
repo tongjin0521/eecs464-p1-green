@@ -6,6 +6,7 @@ Created on Thu Sep  4 20:31:13 2014
 """
 from cmath import pi
 from functools import total_ordering
+from pickle import FALSE, TRUE
 import sys, os
 from unittest import result
 if 'pyckbot/hrb/' not in sys.path:
@@ -16,7 +17,7 @@ from json import dumps as json_dumps
 import numpy as np
 from numpy.linalg import svd
 from numpy.random import randn
-# from waypointShared import *
+from waypointShared import lineDist
 
 from pdb import set_trace as DEBUG
 import math
@@ -45,8 +46,28 @@ except:
   print("### Using DEFAULT arena")
 
 # NOTE: must be AFTER randAreaOutput import
-from waypointShared import waypoints, corners, ROBOT_TAGID, ref, fitHomography
+from waypointShared import waypoints, corners, ROBOT_TAGID, ref, fitHomography, Sensor
 from robotSimIX import RobotSimInterface
+
+#returns if a is equal to b within noise margins
+def about_equal(a, b, noise):
+    if((a <= (b + noise)) and (a >= (b - noise))):
+        return True
+    else:
+        return False
+
+#re maps float from 'left' range to 'right' range
+def translate(value, leftMin, leftMax, rightMin, rightMax):
+    # Figure out how 'wide' each range is
+    leftSpan = leftMax - leftMin
+    rightSpan = rightMax - rightMin
+
+    # Convert the left range into a 0-1 range (float)
+    valueScaled = float(value - leftMin) / float(leftSpan)
+
+    # Convert the 0-1 range into a value in the right range.
+    return rightMin + (valueScaled * rightSpan)
+
 
 ####class that represents a particle
 class Particle:
@@ -56,11 +77,15 @@ class Particle:
         self.weight = weight
 
 class Particle_Filter:
+
+
     # NOTE: we initialize when we reach the first waypoint and have turned to the second waypoint
     def __init__(self, num_particles, init_pos, init_angle,init_pos_noise = 1,init_angle_noise = np.pi / 180 * 5):
         self.dist_noise = init_pos_noise
         self.angle_noise = init_angle_noise
 
+        self.Sensor = Sensor()
+        
         assert(num_particles > 1)
         self.num_particles = num_particles
         self.particles = []
@@ -143,6 +168,40 @@ class Particle_Filter:
         res0 = 1/(1+res**2)
         # res1 = np.asarray(res0.clip(0,0.9999)*256, np.uint8)
         return res0
+
+    def update(self, measured_f, measured_b, a, b):
+        print("updating")
+        print("f: " + str(measured_f))
+        print("b: " + str(measured_b))
+        noise_est = 2.0
+        ##discard distance measurements if they are about 0
+        if(about_equal(measured_f, 0.0, noise_est) and about_equal(measured_b, 0.0, noise_est)):
+            return
+        elif(about_equal(measured_f, 0.0, noise_est)):
+            real_dist = measured_b
+        elif(about_equal(measured_b, 0.0, noise_est)):
+            real_dist = measured_f
+        else:
+            real_dist = (measured_f + measured_b)/2
+        
+        max_sense = 0
+        #for particle in self.particles:
+        for i in range(0, len(self.particles)):
+            #particle_distance = self.Sensor.sense(None, self.particles[i].pos, a, b) ##TODO
+            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 6.816))
+            #print(particle_distance)
+            if(particle_distance > max_sense):
+                max_sense = particle_distance
+            normalized_distance = abs(particle_distance - real_dist) / 255.0
+            scale_factor = (1 - normalized_distance)
+            if(about_equal(real_dist, particle_distance, noise_est)):
+                self.particles[i].weight *= 1
+            else:
+                self.particles[i].weight *= scale_factor
+        self.particles = self.normalized_particles(self.particles)
+        #print(max_sense)
+        print("max particle: " + str(max(x.weight for x in self.particles)))
+
 
 
     def sensor_update(self,sensor,last_waypoint,next_waypoint,REF_TO_CAMERA):
@@ -233,7 +292,6 @@ class RobotSim( RobotSimInterface ):
 
         #Handle coordiante transformation
         ## Reverse Homography
-##################SHOULD NOT NEED THIS OR A LOT OF IT###########################################################
         roi  = np.array([ np.mean(MSG_TEMPLATE[nmi],0) for nmi in corners ] )
         roi  = np.c_[roi, np.ones_like(roi[:,1])]
         self.CAMERA_TO_REF = fitHomography(roi, ref)
@@ -258,9 +316,9 @@ class RobotSim( RobotSimInterface ):
         self.tagPosRefEst = self.tagPosRef
         self.posEst = self.pos
         self.angEst = self.ang
-        
-        ##create particle data structure
-        self.pf = Particle_Filter(200,self.pos,self.ang,init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+    
+        self.pf = Particle_Filter(10 ,self.pos,self.ang,init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+
 
         rec_dim = [25, 10] # height, width
         base_dim = [18, 12]
@@ -410,13 +468,30 @@ class RobotSim( RobotSimInterface ):
         ## TODO: Simplify into function? Or make math easier?
 
         ## ------real robot------ dashed lines
-        # self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.angEst+cEst]),plt = "~plot", color = 'b',ls="--", both = False)
-        # self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + cEst]),plt = "~plot", color='g',ls = "--", both = False)
+        #self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.angEst+cEst]),plt = "~plot", color = 'b',ls="--", both = False)
+        #self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + cEst]),plt = "~plot", color='g',ls = "--", both = False)
 
         ## ------PF robot------ real lines 
-        self.plot_rect(np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles]),plt="~scatter", color = 'darkseagreen',both = True)
+        #self.plot_rect(np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles]),plt="~scatter", color = 'darkseagreen',both = True)
         self.plot_rect(np.asarray([[x.real, x.imag] for x in self.rec_unrotated*self.ang + self.pos]), plt="~plot", color = "b",both = True)
         self.plot_rect(np.asarray([[x.real, x.imag] for x in self.base_unrotated*self.baseAng + self.pos]), plt="~plot", color = "g", both = True)
         # print("----")
         # print(cEst)
         # print(self.pos)
+        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+        xy1 = np.c_[coordinates, np.ones_like(coordinates[:,1])]
+        xy1 = np.dot(xy1,self.REF_TO_CAMERA)
+        rec_centered_camera_coordinates  = (xy1[:,:2]/xy1[:,[2]])
+        x = [int(x) for x in rec_centered_camera_coordinates[:,0]]
+        y = [int(y) for y in rec_centered_camera_coordinates[:,1]]
+        weights = [float(particle.weight) for particle in self.pf.particles]
+
+        max = np.max(weights)
+        min = np.min(weights)
+
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+
+        self.visRobot("~scatter", x, y, c=weights, cmap='gray')
+        self.visArena("~scatter", x, y, c=weights, cmap='gray')

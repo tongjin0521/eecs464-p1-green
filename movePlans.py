@@ -16,6 +16,8 @@ except ImportError:
 
 from joy import progress
 
+from myRobotSimIX import Particle_Filter
+
 from waypointShared import lineSensorResponse, lineDist
 
 # HitWaypoint Exception
@@ -92,6 +94,17 @@ class Auto(Plan):
                 break
             yield self.forDuration(0.5)
         numWaypoints = len(self.sensorP.lastWaypoints[1])
+
+        ##create particle data structure
+        #start pos
+        #start_pos = next_waypoint
+        #start angle
+        #difference = [next_waypoint.real - curr_waypoint.real, next_waypoint.imag - curr_waypoint.imag]
+        #start_angle = np.angle(difference[0] + difference[0]*1j) # radian
+
+        #this will need to change in the real simulator to waypoint values
+        self.robSim.pf = Particle_Filter(200 , self.robSim.posEst, self.robSim.angEst, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -120,9 +133,10 @@ class Auto(Plan):
 
             ##new version using PF state estimate
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
-    
+            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]    
             self.pos, self.ang = self.robSim.pf.estimated_pose()
+            progress("est pos:" + str(self.pos))
+            progress("est ang:" + str(self.ang))
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 # we hit a waypoint and are heading for a new one
                 progress("WAYPOINT REACHED")
@@ -152,10 +166,30 @@ class Auto(Plan):
             #if we think we are at a waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
             if(distance < min_distance_threshold):
-                #TODO calculate covariance 
-                #turn and move along this direction
+                #TODO calculate covariance
+                #TODO maybe drive straight some more first ... evaluate with testing
+                #turn and move along covariance direction
                 #possibly add spiral or more robust failure case
                 progress("failed to reach waypoint in standard method")
+                x = self.robSim.pf.particles.pos.real
+                y = self.robSim.pf.particles.pos.imag
+                c = np.cov(x, y)
+                covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
+                turn_rads = covariance_angle - angle
+                
+                #execute turn
+                self.app.turn.ang = turn_rads
+                self.app.turn.dur = 1
+                self.app.turn.N = 3
+                self.app.turn.start()
+                yield self.forDuration(2)
+
+                #drive back and forth some amount -- should probably be linked to particle positions
+
+                #while waypoint number is the same
+                    #drive back and forth more and more
+
+
 
             #default case for movement to waypoint
             else:
@@ -175,11 +209,20 @@ class Auto(Plan):
 
                 ##execute move##############################################################
                 #only move by at most step_size
+                #TODO tune this value
                 step_size = 5
                 if(distance < step_size):
                     self.app.move.dist = distance
                 else:
                     self.app.move.dist = step_size
+
+                ts,f,b = self.sensorP.lastSensor
+                curr_waypoint = curr_waypoint[0] + curr_waypoint[1]*1j
+                next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
+                self.robSim.pf.update(f, b,next_waypoint, curr_waypoint)
+
+                # for particle in self.robSim.pf.particles:
+                #     progress(str(particle.weight))
 
                 self.app.move.dur = 4
                 self.app.move.N = 5
