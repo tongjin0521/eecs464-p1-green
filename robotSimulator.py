@@ -21,10 +21,9 @@ import math
 # Added or modified
 if '-r' in sys.argv:
     print('Using real robot')
-    from myRobotRealIX import RobotSim, RobotSimInterface
+    from myRobotRealIX import RobotSim, RobotSimInterface, MoveForward, LiftWheels, Turn
 else:
     from myRobotSimIX import RobotSim, RobotSimInterface
-from movePlans import MoveDistClass, LiftWheelsClass, TurnClass, Auto
 
 class RobotSimulatorApp( JoyApp ):
   """Concrete class RobotSimulatorApp <<singleton>>

@@ -67,14 +67,79 @@ class RobotSimInterface( object ):
         # Do nothing
         return ""
 
+
+class MoveForward(Plan):
+    def __init__(self,app,robSim):
+        Plan.__init__(self, app)
+        
+        self.robSim = robSim
+        #distance to travel
+        self.dist = 10 #3
+        #Duration of travel
+        self.dur = 3 #2
+        #n of intermediate steps
+        self.N = 10 #5
+
+    def behavior(self):
+        
+        step = self.dist / float(self.N)
+        dt = self.dur / float(self.N)
+        for k in range(self.N):
+            self.robSim.move(step)
+            yield self.forDuration(dt)
+
+class LiftWheels(Plan):
+    def __init__(self, app, robSim):
+        Plan.__init__(self,app)
+        self.robSim = robSim
+        self.direction = 1
+    def behavior(self):
+        yield self.robSim.liftWheels()
+
+class Turn(Plan):
+    def __init__(self,app,robSim):
+        Plan.__init__(self,app)
+
+        self.robSim = robSim
+        #Angle to turn [rad]
+        self.ang = 0.1
+        #Duration of travel [sec]
+        self.dur = 3.0 #1.0
+        #n of steps
+        self.N = 10 #3
+        self.absolute = False
+    def behavior(self):
+
+        #Compute rotation step
+        dt = self.dur / float(self.N)
+        step = self.ang / float(self.N)
+        #find shortest angle to turn
+        #step = lambda f(self.ang): min(self.ang, (2*math.pi)-self.ang, key=abs)
+        #Will have to change for absolute bool
+        for k in range(self.N):
+            self.robSim.turn(step, self.absolute)
+            yield self.forDuration(dt)
+        
+class Auto(Plan):
+    def __init__(self, app, robSim, sensorP):
+        Plan.__init__(self, app)
+        self.robSim = robSim
+        self.sensorP = sensorPself.pos = [0,0]
+        # wtf is this
+        # self.usePoseEstimateInsteadofActualPose = True
+
+    def behavior(self):
+        #insert auto behavior
+        yield self.forDuration(1) #for compile purposes
+
 class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         # initialize motors
         self.app = app
         self.servo = self.app.robot.at
-        self.liftAngle = 2500
-        self.manualSpeed = 10
+        self.liftAngle = 2500 #Must change to our specs
+        self.manualSpeed = 10 #this slow fr fr must change to our specs
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
         self.servo.wheelMotorBack.set_mode('cont')
@@ -88,7 +153,8 @@ class RobotSim( RobotSimInterface ):
         self.servo.liftServoBack.set_pos(-self.liftAngle)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
-
+        self.wheelsDown = True
+        
     def wheelsDown(self):
         return self.servo.liftServoFront.get_pos() < -self.liftAngle/2
 
@@ -107,7 +173,7 @@ class RobotSim( RobotSimInterface ):
         self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
         self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
         if self.wheelsDown():
-            self.servo.liftServoFront.set_pos(0)
+            self.servo.liftServoFront.set_pos(0) #assuming 0=up
             self.servo.liftServoBack.set_pos(0)
         else:
             self.servo.liftServoFront.set_pos(-self.liftAngle)
@@ -118,7 +184,7 @@ class RobotSim( RobotSimInterface ):
         if not self.wheelsDown():
             yield self.liftWheels()
         #numRotations is postive for forward and negative for backward
-        stepSize = 0.1;
+        stepSize = 0.1
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
         posBack = self.servo.wheelMotorBack.get_pos()
