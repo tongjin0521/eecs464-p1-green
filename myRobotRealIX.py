@@ -85,18 +85,20 @@ class RobotSim( RobotSimInterface ):
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(3)
         self.servo.liftServoBack.set_speed(3)
-        self.servo.liftServoFront.set_pos(self.liftAngle)
-        self.servo.liftServoBack.set_pos(self.liftAngle)
+        self.servo.liftServoFront.set_pos(0)
+        self.servo.liftServoBack.set_pos(0)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
         self.servo.spinMotor.set_pos(0)
-        self.wheelsDown = True
+        self.wheelsDown = False
         self.pf = None
 
     def turn(self, ang, absolute=False):
         degrees = - 1.0 * ang * 180 / math.pi
-        while (self.wheelsDown or self.servo.liftServoFront.get_pos() < self.liftAngle /2):
+        if self.wheelsDown:
             self.liftWheels()
+        while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
+            pass
         currentPos = self.servo.spinMotor.get_pos()
         movePos = currentPos-degrees*100
         if absolute:

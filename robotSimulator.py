@@ -177,12 +177,15 @@ if __name__=="__main__":
   """ % ((argv[0],)*4))
   if '-r' in sys.argv:
     sys.argv.remove('-r')
-    motorNames = {0x08:"wheelMotorFront",
-                  0x3C:"wheelMotorBack",
-                  0x14:"liftServoFront",
+    # motorNames = {0x08:"wheelMotorFront",
+    #               0x3C:"wheelMotorBack",
+    #               0x14:"liftServoFront",
+    #               0x93:"liftServoBack",
+    #               0x32:"spinMotor"}
+    motorNames = {0x14:"liftServoFront",
                   0x93:"liftServoBack",
                   0x32:"spinMotor"}
-    robot = {'count':5, 'names': motorNames}
+    robot = {'count':3, 'names': motorNames}
   else:
     robot = None
   cfg = {'windowSize' : [160,120]}

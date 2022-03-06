@@ -115,7 +115,8 @@ class Auto(Plan):
 
         #this will need to change in the real simulator to waypoint values
         new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-        self.robSim.pf = Particle_Filter(200 , waypoints[0], 1 + 0j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+        print(waypoints[0])
+        self.robSim.pf = Particle_Filter(200 , waypoints[0][0] + waypoints[0][1]*1j, 0 - 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
 
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
@@ -164,17 +165,17 @@ class Auto(Plan):
             turn_rads = target_angle - angle
             
             #debug
-            '''
+            
             progress("------------------------")
             progress("pos: " + str(self.pos))
             progress("target_pos: " + str(next_waypoint))
             progress("diff: " + str(difference))
             progress("dist: " + str(distance))
-            progress("angle: " + str(angle))
-            progress("target_ang: " + str(target_angle))
-            progress("turn: " + str(turn_rads))
+            progress("angle: " + str(angle / np.pi * 180))
+            progress("target_ang: " + str(target_angle / np.pi *180))
+            progress("turn: " + str(turn_rads /np.pi * 180))
             progress("------------------------")
-            '''
+            
             #if we think we are at a waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
             if(distance < min_distance_threshold):
@@ -238,6 +239,6 @@ class Auto(Plan):
 
                 self.app.move.dur = 4
                 self.app.move.N = 5
-                self.app.move.start()
+                # self.app.move.start()
                 yield self.forDuration(5)
         yield
