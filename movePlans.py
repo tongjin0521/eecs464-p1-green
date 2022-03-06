@@ -70,9 +70,18 @@ class TurnClass(Plan):
         # Compute rotation step for relative motion
         dt = self.dur / float(self.N)
         step = self.ang / float(self.N)
+        # self.servo = self.app.robot.at
+        # self.servo.spinMotor.set_mode(2)
+        # self.servo.spinMotor.set_speed(7)
+        # print(self.servo.spinMotor.get_pos())
+        # # self.servo.spinMotor.set_pos(4500)
+        # self.robSim.turn(1)
+        # yield self.forDuration(1)
+        # print(self.servo.spinMotor.get_pos())
 
         for k in range(self.N):
             self.robSim.turn(step)
+            # print("turn step:" + str(step))
             yield self.forDuration(dt)
 
 class Auto(Plan):

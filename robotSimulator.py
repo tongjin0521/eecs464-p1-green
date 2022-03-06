@@ -11,7 +11,7 @@ from joy import JoyApp, progress
 from joy.decl import *
 from joy.plans import Plan
 from waypointShared import (
-  WAYPOINT_HOST, WAYPOINT_MSG_PORT, APRIL_DATA_PORT
+  WAYPOINT_HOST, WAYPOINT_MSG_PORT, APRIL_DATA_PORT, Sensor
   )
 from socket import (
   socket, AF_INET,SOCK_DGRAM, IPPROTO_UDP, error as SocketError,
@@ -62,7 +62,7 @@ class RobotSimulatorApp( JoyApp ):
     progress("Using %s:%d as the waypoint host" % self.srvAddr)
     self.T0 = self.now
     ### MODIFY FROM HERE ------------------------------------------
-    self.robSim = RobotSim(fn=None, app=self,sensor = self.sensor)
+    self.robSim = RobotSim(fn=None, app=self)
     self.move = MoveDistClass(self, self.robSim)
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
@@ -94,9 +94,12 @@ class RobotSimulatorApp( JoyApp ):
     self.sock.sendto(msg.encode("ascii"), (self.srvAddr[0],APRIL_DATA_PORT))
 
   def stop_all_plans(self):
-    self.autoP.stop()
-    self.move.stop()
-    self.turn.stop()
+    try:
+      self.autoP.stop()
+      self.move.stop()
+      self.turn.stop()
+    except:
+      pass
 
   def onEvent( self, evt ):
     #### DO NOT MODIFY --------------------------------------------
@@ -115,7 +118,7 @@ class RobotSimulatorApp( JoyApp ):
     if evt.type == KEYDOWN:
       say = "(2022W-P1-GREEN) "
       ##TURN AND STEP SIZE CONSTANTS
-      da, dx = 5 *(math.pi/180), 5
+      da, dx = 45 *(math.pi/180), 20
       if evt.key in key_set:
         self.stop_all_plans()
       if evt.key == K_a:
@@ -175,10 +178,10 @@ if __name__=="__main__":
   if '-r' in sys.argv:
     sys.argv.remove('-r')
     motorNames = {0x08:"wheelMotorFront",
-                  0x02:"wheelMotorBack",
-                  0x04:"liftServoFront",
-                  0x09:"liftServoBack",
-                  0x98:"spinMotor"}
+                  0x3C:"wheelMotorBack",
+                  0x14:"liftServoFront",
+                  0x93:"liftServoBack",
+                  0x32:"spinMotor"}
     robot = {'count':5, 'names': motorNames}
   else:
     robot = None

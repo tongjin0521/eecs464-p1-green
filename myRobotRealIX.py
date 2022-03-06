@@ -21,6 +21,7 @@ import numpy as np
 import math
 from particleFilter import *
 from joy.plans import Plan
+from joy import progress
 # from robotSimIX import RobotSimInterface # DO THIS INSTEAD?
 class RobotSimInterface( object ):
     """
@@ -68,7 +69,7 @@ class RobotSimInterface( object ):
         return ""
 
 class RobotSim( RobotSimInterface ):
-    def __init__(self, app=None, *args, **kw):
+    def __init__(self, app=None,  *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
         # initialize motors
         self.app = app
@@ -82,22 +83,20 @@ class RobotSim( RobotSimInterface ):
         self.servo.wheelMotorBack.set_speed(10)
         self.servo.liftServoFront.set_mode(0)
         self.servo.liftServoBack.set_mode(0)
-        self.servo.liftServoFront.set_speed(15)
-        self.servo.liftServoBack.set_speed(7)
-        self.servo.liftServoFront.set_pos(-self.liftAngle)
-        self.servo.liftServoBack.set_pos(-self.liftAngle)
+        self.servo.liftServoFront.set_speed(3)
+        self.servo.liftServoBack.set_speed(3)
+        self.servo.liftServoFront.set_pos(self.liftAngle)
+        self.servo.liftServoBack.set_pos(self.liftAngle)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
+        self.servo.spinMotor.set_pos(0)
         self.wheelsDown = True
         self.pf = None
-        
-    def wheelsDown(self):
-        return self.servo.liftServoFront.get_pos() < -self.liftAngle/2
 
     def turn(self, ang, absolute=False):
-        degrees = - 1.0 * ang * 180 / pi
-        if self.wheelsDown():
-            yield self.liftWheels()
+        degrees = - 1.0 * ang * 180 / math.pi
+        while (self.wheelsDown or self.servo.liftServoFront.get_pos() < self.liftAngle /2):
+            self.liftWheels()
         currentPos = self.servo.spinMotor.get_pos()
         movePos = currentPos-degrees*100
         if absolute:
@@ -105,22 +104,22 @@ class RobotSim( RobotSimInterface ):
         self.servo.spinMotor.set_pos(movePos)
         if self.pf:
             self.pf.turn_update(ang)
-        yield
 
     def liftWheels(self):
         self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
         self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
-        if self.wheelsDown():
+        if self.wheelsDown:
             self.servo.liftServoFront.set_pos(0) #assuming 0=up
             self.servo.liftServoBack.set_pos(0)
+            self.wheelsDown = False
         else:
-            self.servo.liftServoFront.set_pos(-self.liftAngle)
-            self.servo.liftServoBack.set_pos(-self.liftAngle)
-        yield
+            self.servo.liftServoFront.set_pos(self.liftAngle)
+            self.servo.liftServoBack.set_pos(self.liftAngle)
+            self.wheelsDown = True
 
     def move(self, dist):
-        if not self.wheelsDown():
-            yield self.liftWheels()
+        if not self.wheelsDown:
+            self.liftWheels()
         #numRotations is postive for forward and negative for backward
         # TODO: 
         wheel_radius = 10
@@ -135,23 +134,22 @@ class RobotSim( RobotSimInterface ):
         posBackOrig = posBack
 
         numSteps = abs(math.floor(numRotations/stepSize))
-        print(numSteps)
+        # print(numSteps)
         for i in range(1,int(numSteps+1)):
             #print(i)
-            posFront += stepSize*36000*np.sign(dist)
-            posBack  += stepSize*36000*np.sign(dist)*-1
+            posFront += stepSize*3600*np.sign(dist)
+            posBack  += stepSize*3600*np.sign(dist)
             self.servo.wheelMotorFront.set_pos(posFront)
             self.servo.wheelMotorBack.set_pos(posBack)
-            yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
+            # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
             #yield self.app.move.forDuration(1)
 
-        finalPosFront = posFrontOrig + dist*36000
-        finalPosBack  = posBackOrig  + dist*36000*-1
+        finalPosFront = posFrontOrig + numRotations*3600
+        finalPosBack  = posBackOrig  + numRotations*3600
         self.servo.wheelMotorFront.set_pos(finalPosFront)
         self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:
             self.pf.move_update(dist)
-        yield
 
     def turnTagTo(self, tag_heading):
         # Turns the tag mounted on the robot to a given heading
