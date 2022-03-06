@@ -3,7 +3,7 @@ from numpy import (
     asarray, c_, dot, isnan, append, ones, reshape, mean,
     argsort, degrees, pi, arccos, ones_like
     )
-from numpy import linalg as LA
+from numpy import linalg
 import numpy as np
 import math
 
@@ -27,7 +27,7 @@ class MoveDistClass(Plan):
         Plan.__init__(self, app)
         self.robSim = robSim
         # Distance to travel
-        self.dist = 3
+        self.dist = 2
         # Duration of travel [sec]
         self.dur = 2
         # Number of intermediate steps
@@ -56,7 +56,7 @@ class TurnClass(Plan):
         Plan.__init__(self, app)
         self.robSim = robSim
         # Angle to turn [rad]
-        self.ang = 0.1
+        self.ang = 0.05
         # Duration of travel [sec]
         self.dur = 1.0
         # Number of intermediate steps
@@ -69,23 +69,9 @@ class TurnClass(Plan):
         dt = self.dur / float(self.N)
         step = self.ang / float(self.N)
 
-        #Calculate step size for absolute motion
-        initAng = math.atan2(self.robSim.ang.imag, self.robSim.ang.real)
-        a = self.ang-initAng
-        #https://stackoverflow.com/questions/1878907/the-smallest-difference-between-2-angles
-        if a > math.pi:
-            a = a-2*math.pi
-        elif a < -math.pi:
-            a = a+2*math.pi
-        deltaAng = a
-        stepAng = deltaAng/float(self.N)
-
         for k in range(self.N):
-          if not self.absolute:
-              self.robSim.turn(step, self.absolute)
-          else:
-              self.robSim.turn(initAng+stepAng*(k+1), self.absolute)
-          yield self.forDuration(dt)
+            self.robSim.turn(step)
+            yield self.forDuration(dt)
 
 class Auto(Plan):
     """
@@ -98,104 +84,105 @@ class Auto(Plan):
         self.pos = [0, 0]
 
     def behavior(self):
-        # Move and Turn Fast/In 1 Step
-        self.app.move.N = 1
-        self.app.move.dur = 0.5
-        self.app.turn.N = 1
-        self.app.turn.dur = 0.0
-        reachedFirstWaypoint = 0
-        attemptsToFindWaypoint = 0
-        maxAttempts = 1
-        stepSize = 5
-        original_dNoise = self.robSim.dNoise
-        original_aNoise = self.robSim.aNoise
+
+        ##get Waypoint data here
         while True:
             t, w = self.sensorP.lastWaypoints
             if len(w) != 0:
                 break
             yield self.forDuration(0.5)
         numWaypoints = len(self.sensorP.lastWaypoints[1])
+        ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
+            # TODO: 
+            #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
+            #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
+            #   3. What if we miss a waypoint?
+            #   4. blocked - how to turn to avoid blocking?
+            #   5. if we are really close to the target, we tend to have great angle diff, but in that way, we actually dont need to change our angle
+            #   6. following point 5, we may want to turn to the desired angle when we get close to the target and turn it once for all
+
+            ##old version using basic state estimate
+            ''' 
+            ##fetch position and angle estimates as well as waypoint locations
             self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
             self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
-
-            self.ang /= LA.norm(self.ang)
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
             curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
 
-            #We should get exactly to first waypoint in a single attempt
-            if not reachedFirstWaypoint:
-                self.pos = c_[self.robSim.pos.real, self.robSim.pos.imag]
-                self.ang = c_[self.robSim.ang.real, self.robSim.ang.imag]
-                self.robSim.posEst = self.robSim.pos
-                next_waypoint = curr_waypoint[0] + curr_waypoint[1]*1j
-                self.robSim.dNoise = 0
-                self.robSim.aNoise = 0
-                attemptsToFindWaypoint = -1
-            else:
-                next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
-                self.robSim.dNoise = original_dNoise
-                self.robSim.aNoise = original_aNoise
-            reachedFirstWaypoint = True
+            ##compute angle and direction to turn and move
+            difference = next_waypoint - self.pos
+            distance = linalg.norm(difference)
+            angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j) # radian
+            target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
+            turn_rads = target_angle - angle
+            '''
 
-            #if we hit a waypoint move guess and noisy robot pos to waypoint
-            if numWaypoints != len(self.sensorP.lastWaypoints[1]):
-                way_loc = dot(curr_waypoint,[1,1j])
-                self.robSim.posEst = way_loc
+            ##new version using PF state estimate
+            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
+    
+            self.pos, self.ang = self.robSim.pf.estimated_pose()
+            if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
+                # we hit a waypoint and are heading for a new one
+                progress("WAYPOINT REACHED")
+                self.robSim.pf.waypoint_update(self.pos,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
-                attemptsToFindWaypoint = 0
+            
+            #position / distance
+            difference = [next_waypoint[0] - self.pos.real, (next_waypoint[1] - self.pos.imag)]
+            distance = linalg.norm(difference)
+            #angle
+            angle = np.angle(self.ang.real + self.ang.imag*1j) # radian
+            target_angle = np.angle(next_waypoint[0] - self.pos.real + (next_waypoint[1] - self.pos.imag) * 1j) # radian
+            turn_rads = target_angle - angle
+            
+            #debug
+            '''
+            progress("------------------------")
+            progress("pos: " + str(self.pos))
+            progress("target_pos: " + str(next_waypoint))
+            progress("diff: " + str(difference))
+            progress("dist: " + str(distance))
+            progress("angle: " + str(angle))
+            progress("target_ang: " + str(target_angle))
+            progress("turn: " + str(turn_rads))
+            progress("------------------------")
+            '''
+            #if we think we are at a waypoint
+            min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
+            if(distance < min_distance_threshold):
+                #TODO calculate covariance 
+                #turn and move along this direction
+                #possibly add spiral or more robust failure case
+                progress("failed to reach waypoint in standard method")
 
-            # Spiral if out of attempts
-            if attemptsToFindWaypoint >= 1:
-                progress('Running Spiral')
-                try:
-                    self.app.move.dist = stepSize if attemptsToFindWaypoint == maxAttempts else self.app.move.dist
-                    self.app.turn.absolute = False
-                    self.app.turn.ang = pi / 2
-
-                    i = attemptsToFindWaypoint - maxAttempts
-                    self.app.move.dur = 0.1
-                    self.app.move.N = 1
-                    steps = int(self.app.move.dist // 5)
-                    totalDist = self.app.move.dist
-                    for _ in range(steps):
-                        self.app.move.dist = steps
-                        self.app.move.start()
-                        yield self.forDuration(0.4)
-                        if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
-                            self.app.move.stop()
-                            yield self.forDuration(1)#Wait for animation to update so robot is over waypoint
-                            raise HitWaypoint("HitWaypoint")
-                    self.app.move.dist = totalDist % 5
-                    self.app.move.start()
-                    yield self.forDuration(2)
-                    self.app.move.dist = totalDist
-
-                    self.app.turn.dur = 2
-                    self.app.turn.N = 2
-                    self.app.turn.start()
-                    yield self.forDuration(3)
-                    self.app.move.dist += stepSize * (i % 2)
-                except HitWaypoint:
-                    pass
+            #default case for movement to waypoint
             else:
-                v = next_waypoint - dot(self.pos,[1,1j])
-                distance = LA.norm(v)
-                direction_radians = math.atan2(v.imag, v.real)
+                ##execute turn#############################################################
+                #min turn angle of 3 degrees - approx acc. of servo
+                # TODO tune this value more
+                min_turn_angle = 3.0 * np.pi / 180.0
+                # progress(str(turn_rads))
+                if(abs(turn_rads) > min_turn_angle and distance > 5):
+                    progress("turn")
+                    self.app.turn.ang = turn_rads
+                    self.app.turn.dur = 1
+                    self.app.turn.N = 3
+                    self.app.turn.start()
+                    yield self.forDuration(2)
 
-                self.app.turn.absolute = True
-                self.app.turn.ang = direction_radians
 
-                #self.app.turn.stop()
-                self.app.turn.dur = 1
-                self.app.turn.N = 3
-                self.app.turn.start()
-                yield self.forDuration(2)
+                ##execute move##############################################################
+                #only move by at most step_size
+                step_size = 5
+                if(distance < step_size):
+                    self.app.move.dist = distance
+                else:
+                    self.app.move.dist = step_size
 
-                self.app.move.dist = distance
                 self.app.move.dur = 4
                 self.app.move.N = 5
                 self.app.move.start()
                 yield self.forDuration(5)
-            attemptsToFindWaypoint += 1
         yield

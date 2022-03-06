@@ -62,7 +62,7 @@ class RobotSimulatorApp( JoyApp ):
     progress("Using %s:%d as the waypoint host" % self.srvAddr)
     self.T0 = self.now
     ### MODIFY FROM HERE ------------------------------------------
-    self.robSim = RobotSim(fn=None, app=self)
+    self.robSim = RobotSim(fn=None, app=self,sensor = self.sensor)
     self.move = MoveDistClass(self, self.robSim)
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
@@ -101,20 +101,21 @@ class RobotSimulatorApp( JoyApp ):
   def onEvent( self, evt ):
     #### DO NOT MODIFY --------------------------------------------
     # periodically, show the sensor reading we got from the waypointServer
-    if self.timeForStatus():
-      self.showSensors()
-      progress( self.robSim.logLaserValue(self.now) )
-      # generate simulated laser readings
-    elif self.timeForLaser():
-      self.robSim.logLaserValue(self.now)
-    # update the robot and simulate the tagStreamer
+    # if self.timeForStatus():
+    #   self.showSensors()
+    #   progress( self.robSim.logLaserValue(self.now) )
+    #   # generate simulated laser readings
+    # elif self.timeForLaser():
+    #   self.robSim.logLaserValue(self.now)
+    # # update the robot and simulate the tagStreamer
     if self.timeForFrame():
       self.emitTagMessage()
     #### MODIFY FROM HERE ON ----------------------------------------
     key_set = [K_a,K_UP,K_DOWN,K_SPACE,K_LEFT,K_RIGHT,K_r,K_q]
     if evt.type == KEYDOWN:
       say = "(2022W-P1-GREEN) "
-      da, dx = 10 *(math.pi/180), 10
+      ##TURN AND STEP SIZE CONSTANTS
+      da, dx = 5 *(math.pi/180), 5
       if evt.key in key_set:
         self.stop_all_plans()
       if evt.key == K_a:
