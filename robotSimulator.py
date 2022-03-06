@@ -5,6 +5,7 @@ import sys, os
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
 
+from movePlans import *
 from sensorPlanTCP import SensorPlanTCP
 from joy import JoyApp, progress
 from joy.decl import *
@@ -21,7 +22,7 @@ import math
 # Added or modified
 if '-r' in sys.argv:
     print('Using real robot')
-    from myRobotRealIX import RobotSim, RobotSimInterface, MoveForward, LiftWheels, Turn
+    from myRobotRealIX import RobotSim, RobotSimInterface
 else:
     from myRobotSimIX import RobotSim, RobotSimInterface
 
@@ -171,31 +172,21 @@ if __name__=="__main__":
     %s <host> <port>
         Connect to specified host on specified port
   """ % ((argv[0],)*4))
-  # if '-r' in sys.argv:
-  #   sys.argv.remove('-r')
-  #   motorNames = {0x08:"wheelMotorFront",
-  #                 0x02:"wheelMotorBack",
-  #                 0x04:"liftServoFront",
-  #                 0x09:"liftServoBack",
-  #                 0x98:"spinMotor"}
-  #   robot = {'count':5, 'names': motorNames}
-  # else:
-  #   robot = None
-  # cfg = {'windowSize' : [160,120]}
-  # if len(argv)>2:
-  #   app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),robot=robot,cfg=cfg)
-  # elif len(argv)==2:
-  #   app=RobotSimulatorApp(wphAddr=argv[1],robot=robot,cfg=cfg)
-  # else:
-  #   app=RobotSimulatorApp(robot=robot,cfg=cfg)
-  # app.run()
-
-  import sys
+  if '-r' in sys.argv:
+    sys.argv.remove('-r')
+    motorNames = {0x08:"wheelMotorFront",
+                  0x02:"wheelMotorBack",
+                  0x04:"liftServoFront",
+                  0x09:"liftServoBack",
+                  0x98:"spinMotor"}
+    robot = {'count':5, 'names': motorNames}
+  else:
+    robot = None
   cfg = {'windowSize' : [160,120]}
   if len(argv)>2:
-      app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),cfg=cfg)
+    app=RobotSimulatorApp(wphAddr=argv[1],wphPort=int(argv[2]),robot=robot,cfg=cfg)
   elif len(argv)==2:
-      app=RobotSimulatorApp(wphAddr=argv[1],cfg=cfg)
+    app=RobotSimulatorApp(wphAddr=argv[1],robot=robot,cfg=cfg)
   else:
-      app=RobotSimulatorApp(cfg=cfg)
+    app=RobotSimulatorApp(robot=robot,cfg=cfg)
   app.run()

@@ -16,7 +16,7 @@ except ImportError:
 
 from joy import progress
 
-from myRobotSimIX import Particle_Filter
+from particleFilter import Particle_Filter
 
 from waypointShared import lineSensorResponse, lineDist
 
@@ -86,7 +86,9 @@ class Auto(Plan):
         self.pos = [0, 0]
 
     def behavior(self):
-
+        #---------------------------------------------------------
+        # NOTE: ONLY START THE AUTONOMOUS MODE WHEN WE REACH THE WAYPOINT AND TURN TO 1 + 0j
+        #---------------------------------------------------------
         ##get Waypoint data here
         while True:
             t, w = self.sensorP.lastWaypoints
@@ -103,7 +105,8 @@ class Auto(Plan):
         #start_angle = np.angle(difference[0] + difference[0]*1j) # radian
 
         #this will need to change in the real simulator to waypoint values
-        self.robSim.pf = Particle_Filter(200 , self.robSim.posEst, self.robSim.angEst, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+        self.robSim.pf = Particle_Filter(200 , waypoints[0], 1 + 0j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
 
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:

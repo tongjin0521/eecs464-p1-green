@@ -19,7 +19,7 @@ from numpy.random import randn
 from waypointShared import *
 import numpy as np
 import math
-
+from particleFilter import *
 from joy.plans import Plan
 # from robotSimIX import RobotSimInterface # DO THIS INSTEAD?
 class RobotSimInterface( object ):
@@ -67,71 +67,6 @@ class RobotSimInterface( object ):
         # Do nothing
         return ""
 
-
-class MoveForward(Plan):
-    def __init__(self,app,robSim):
-        Plan.__init__(self, app)
-        
-        self.robSim = robSim
-        #distance to travel
-        self.dist = 10 #3
-        #Duration of travel
-        self.dur = 3 #2
-        #n of intermediate steps
-        self.N = 10 #5
-
-    def behavior(self):
-        
-        step = self.dist / float(self.N)
-        dt = self.dur / float(self.N)
-        for k in range(self.N):
-            self.robSim.move(step)
-            yield self.forDuration(dt)
-
-class LiftWheels(Plan):
-    def __init__(self, app, robSim):
-        Plan.__init__(self,app)
-        self.robSim = robSim
-        self.direction = 1
-    def behavior(self):
-        yield self.robSim.liftWheels()
-
-class Turn(Plan):
-    def __init__(self,app,robSim):
-        Plan.__init__(self,app)
-
-        self.robSim = robSim
-        #Angle to turn [rad]
-        self.ang = 0.1
-        #Duration of travel [sec]
-        self.dur = 3.0 #1.0
-        #n of steps
-        self.N = 10 #3
-        self.absolute = False
-    def behavior(self):
-
-        #Compute rotation step
-        dt = self.dur / float(self.N)
-        step = self.ang / float(self.N)
-        #find shortest angle to turn
-        #step = lambda f(self.ang): min(self.ang, (2*math.pi)-self.ang, key=abs)
-        #Will have to change for absolute bool
-        for k in range(self.N):
-            self.robSim.turn(step, self.absolute)
-            yield self.forDuration(dt)
-        
-class Auto(Plan):
-    def __init__(self, app, robSim, sensorP):
-        Plan.__init__(self, app)
-        self.robSim = robSim
-        self.sensorP = sensorPself.pos = [0,0]
-        # wtf is this
-        # self.usePoseEstimateInsteadofActualPose = True
-
-    def behavior(self):
-        #insert auto behavior
-        yield self.forDuration(1) #for compile purposes
-
 class RobotSim( RobotSimInterface ):
     def __init__(self, app=None, *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
@@ -154,6 +89,7 @@ class RobotSim( RobotSimInterface ):
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
         self.wheelsDown = True
+        self.pf = None
         
     def wheelsDown(self):
         return self.servo.liftServoFront.get_pos() < -self.liftAngle/2
@@ -167,6 +103,8 @@ class RobotSim( RobotSimInterface ):
         if absolute:
             movePos = self.spinMotorOffset-degrees*100
         self.servo.spinMotor.set_pos(movePos)
+        if self.pf:
+            self.pf.turn_update(ang)
         yield
 
     def liftWheels(self):
@@ -184,6 +122,9 @@ class RobotSim( RobotSimInterface ):
         if not self.wheelsDown():
             yield self.liftWheels()
         #numRotations is postive for forward and negative for backward
+        # TODO: 
+        wheel_radius = 10
+        numRotations = dist / (wheel_radius * 2 *np.pi)
         stepSize = 0.1
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
@@ -208,6 +149,8 @@ class RobotSim( RobotSimInterface ):
         finalPosBack  = posBackOrig  + dist*36000*-1
         self.servo.wheelMotorFront.set_pos(finalPosFront)
         self.servo.wheelMotorBack.set_pos(finalPosBack)
+        if self.pf:
+            self.pf.move_update(dist)
         yield
 
     def turnTagTo(self, tag_heading):
