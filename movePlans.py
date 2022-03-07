@@ -49,7 +49,6 @@ class MoveDistClass(Plan):
         Plan.__init__(self, app)
         self.robSim = robSim
         # Distance to travel
-<<<<<<< HEAD
         self.step_size = 1
         self.dist = 5
         self.dt = 0.001
@@ -60,23 +59,6 @@ class MoveDistClass(Plan):
         for k in range(int(step_num)):
             self.robSim.move(self.step_size * np.sign(self.dist))
             yield self.forDuration(self.dt)
-=======
-        self.dist = 2
-        # Duration of travel [sec]
-        self.dur = 2
-        # Number of intermediate steps
-        self.N = 5
-
-    def behavior(self):
-        # Compute step along the forward direction
-        step = self.dist / float(self.N)
-        # print('Step size: ', step)
-        dt = self.dur / float(self.N)
-        for k in range(self.N):
-          self.robSim.move(step)
-          #print(self.robSim.pos)
-          yield self.forDuration(dt)
->>>>>>> 3e5951249d42a8c6624e7a29c9a8c2f788e41dea
 
 class LiftWheelsClass(Plan):
     def __init__(self, app, robSim):
@@ -90,32 +72,17 @@ class TurnClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
-        # Angle to turn [rad]
         self.ang = 0.05
-        # Duration of travel [sec]
-        self.dur = 1.0
-        # Number of intermediate steps
-        self.N = 3
-        # Abs loc
+        self.step_size = 1 / 180 * np.pi  
         self.absolute = False
+        self.dt = 0.025
 
     def behavior(self):
-        # Compute rotation step for relative motion
-        dt = self.dur / float(self.N)
-        step = self.ang / float(self.N)
-        # self.servo = self.app.robot.at
-        # self.servo.spinMotor.set_mode(2)
-        # self.servo.spinMotor.set_speed(7)
-        # print(self.servo.spinMotor.get_pos())
-        # # self.servo.spinMotor.set_pos(4500)
-        # self.robSim.turn(1)
-        # yield self.forDuration(1)
-        # print(self.servo.spinMotor.get_pos())
-
+        step_num = abs(self.dist) / self.step_size
         for k in range(self.N):
-            self.robSim.turn(step)
+            self.robSim.turn(self.step_size)
             # print("turn step:" + str(step))
-            yield self.forDuration(dt)
+            yield self.forDuration(self.dt)
 
 class Auto(Plan):
     """
