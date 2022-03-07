@@ -20,6 +20,26 @@ from particleFilter import Particle_Filter
 
 from waypointShared import lineSensorResponse, lineDist
 
+# VERY IMPORTANT ########################################################################################################
+#determines if we are running real or simulated robot
+real_robot = True
+############################################################################################################
+
+
+
+#converts a waypoint coordinate - list format into complex number format
+def list_to_complex(waypoint):
+    return waypoint[0] + 1j* waypoint[1]
+
+
+#accounts for coordinate flipping when using the real camera system
+def convert_waypoint(waypoint):
+    #flip x and y if real robot
+    if real_robot:
+        return [waypoint[1], waypoint[0]]
+    else:
+        return waypoint
+
 # HitWaypoint Exception
 class HitWaypoint(Exception):
     pass
@@ -29,6 +49,7 @@ class MoveDistClass(Plan):
         Plan.__init__(self, app)
         self.robSim = robSim
         # Distance to travel
+<<<<<<< HEAD
         self.step_size = 1
         self.dist = 5
         self.dt = 0.001
@@ -39,6 +60,23 @@ class MoveDistClass(Plan):
         for k in range(int(step_num)):
             self.robSim.move(self.step_size * np.sign(self.dist))
             yield self.forDuration(self.dt)
+=======
+        self.dist = 2
+        # Duration of travel [sec]
+        self.dur = 2
+        # Number of intermediate steps
+        self.N = 5
+
+    def behavior(self):
+        # Compute step along the forward direction
+        step = self.dist / float(self.N)
+        # print('Step size: ', step)
+        dt = self.dur / float(self.N)
+        for k in range(self.N):
+          self.robSim.move(step)
+          #print(self.robSim.pos)
+          yield self.forDuration(dt)
+>>>>>>> 3e5951249d42a8c6624e7a29c9a8c2f788e41dea
 
 class LiftWheelsClass(Plan):
     def __init__(self, app, robSim):
@@ -52,16 +90,32 @@ class TurnClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
+        # Angle to turn [rad]
         self.ang = 0.05
-        self.dt = 0.01
-        self.step_size = 1 / 180 * np.pi
+        # Duration of travel [sec]
+        self.dur = 1.0
+        # Number of intermediate steps
+        self.N = 3
+        # Abs loc
         self.absolute = False
 
     def behavior(self):
-        step_num = abs(self.ang) / self.step_size
-        for k in range(int(step_num)):
-            self.robSim.turn(self.step_size * np.sign(self.ang))
-            yield self.forDuration(self.dt)
+        # Compute rotation step for relative motion
+        dt = self.dur / float(self.N)
+        step = self.ang / float(self.N)
+        # self.servo = self.app.robot.at
+        # self.servo.spinMotor.set_mode(2)
+        # self.servo.spinMotor.set_speed(7)
+        # print(self.servo.spinMotor.get_pos())
+        # # self.servo.spinMotor.set_pos(4500)
+        # self.robSim.turn(1)
+        # yield self.forDuration(1)
+        # print(self.servo.spinMotor.get_pos())
+
+        for k in range(self.N):
+            self.robSim.turn(step)
+            # print("turn step:" + str(step))
+            yield self.forDuration(dt)
 
 class Auto(Plan):
     """
@@ -94,8 +148,7 @@ class Auto(Plan):
 
         #this will need to change in the real simulator to waypoint values
         new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-        print(waypoints[0])
-        self.robSim.pf = Particle_Filter(200 , waypoints[0][0] + waypoints[0][1]*1j, 0 - 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+        self.robSim.pf = Particle_Filter(200 , list_to_complex(convert_waypoint(waypoints[0])), 1 + 0j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
 
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
@@ -125,7 +178,8 @@ class Auto(Plan):
 
             ##new version using PF state estimate
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]    
+
+            curr_waypoint, next_waypoint = convert_waypoint(waypoints[0]), convert_waypoint(waypoints[1]) 
             self.pos, self.ang = self.robSim.pf.estimated_pose()
             progress("est pos:" + str(self.pos))
             progress("est ang:" + str(self.ang))
@@ -209,15 +263,13 @@ class Auto(Plan):
                     self.app.move.dist = step_size
 
                 ts,f,b = self.sensorP.lastSensor
-                curr_waypoint = curr_waypoint[0] + curr_waypoint[1]*1j
-                next_waypoint = next_waypoint[0] + next_waypoint[1]*1j
-                self.robSim.pf.update(f, b,next_waypoint, curr_waypoint)
+                self.robSim.pf.update(f, b, list_to_complex(next_waypoint),list_to_complex(curr_waypoint))
 
                 # for particle in self.robSim.pf.particles:
                 #     progress(str(particle.weight))
 
                 self.app.move.dur = 4
                 self.app.move.N = 5
-                # self.app.move.start()
+                self.app.move.start()
                 yield self.forDuration(5)
         yield
