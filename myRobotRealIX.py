@@ -22,7 +22,7 @@ import math
 from particleFilter import *
 from joy.plans import Plan
 from joy import progress
-# from robotSimIX import RobotSimInterface # DO THIS INSTEAD?
+
 class RobotSimInterface( object ):
     """
     Abstract superclass RobotSimInterface defines the output-facing interface
@@ -74,7 +74,7 @@ class RobotSim( RobotSimInterface ):
         # initialize motors
         self.app = app
         self.servo = self.app.robot.at
-        self.liftAngle = 2500 #Must change to our specs
+        self.liftAngle = 3500 #Must change to our specs
         self.manualSpeed = 10 #this slow fr fr must change to our specs
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
@@ -123,10 +123,9 @@ class RobotSim( RobotSimInterface ):
         if not self.wheelsDown:
             self.liftWheels()
         #numRotations is postive for forward and negative for backward
-        # TODO: 
-        wheel_radius = 10
+        wheel_radius = 4.8
         numRotations = dist / (wheel_radius * 2 *np.pi)
-        stepSize = 0.1
+        stepSize = 10 * 100  #degrees
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
         posBack = self.servo.wheelMotorBack.get_pos()
@@ -135,17 +134,16 @@ class RobotSim( RobotSimInterface ):
         posFrontOrig = posFront
         posBackOrig = posBack
 
-        numSteps = abs(math.floor(numRotations/stepSize))
+        numSteps = abs(math.floor(numRotations * 360 * 100/ stepSize * 100))
         # print(numSteps)
-        for i in range(1,int(numSteps+1)):
-            #print(i)
-            posFront += stepSize*3600*np.sign(dist)
-            posBack  += stepSize*3600*np.sign(dist)
+        for i in range(int(numSteps)):
+            print(i)
+            posFront += stepSize*np.sign(dist)
+            posBack  += stepSize*np.sign(dist)
             self.servo.wheelMotorFront.set_pos(posFront)
             self.servo.wheelMotorBack.set_pos(posBack)
             # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
             #yield self.app.move.forDuration(1)
-
         finalPosFront = posFrontOrig + numRotations*3600
         finalPosBack  = posBackOrig  + numRotations*3600
         self.servo.wheelMotorFront.set_pos(finalPosFront)

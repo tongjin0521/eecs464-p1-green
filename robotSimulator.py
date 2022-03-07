@@ -104,13 +104,13 @@ class RobotSimulatorApp( JoyApp ):
   def onEvent( self, evt ):
     #### DO NOT MODIFY --------------------------------------------
     # periodically, show the sensor reading we got from the waypointServer
-    # if self.timeForStatus():
-    #   self.showSensors()
-    #   progress( self.robSim.logLaserValue(self.now) )
-    #   # generate simulated laser readings
-    # elif self.timeForLaser():
-    #   self.robSim.logLaserValue(self.now)
-    # # update the robot and simulate the tagStreamer
+    if self.timeForStatus():
+      self.showSensors()
+      progress( self.robSim.logLaserValue(self.now) )
+      # generate simulated laser readings
+    elif self.timeForLaser():
+      self.robSim.logLaserValue(self.now)
+    # update the robot and simulate the tagStreamer
     if self.timeForFrame():
       self.emitTagMessage()
     #### MODIFY FROM HERE ON ----------------------------------------
@@ -118,7 +118,7 @@ class RobotSimulatorApp( JoyApp ):
     if evt.type == KEYDOWN:
       say = "(2022W-P1-GREEN) "
       ##TURN AND STEP SIZE CONSTANTS
-      da, dx = 45 *(math.pi/180), 20
+      da, dx = 10 *(math.pi/180), 5 
       if evt.key in key_set:
         self.stop_all_plans()
       if evt.key == K_a:
@@ -177,15 +177,12 @@ if __name__=="__main__":
   """ % ((argv[0],)*4))
   if '-r' in sys.argv:
     sys.argv.remove('-r')
-    # motorNames = {0x08:"wheelMotorFront",
-    #               0x3C:"wheelMotorBack",
-    #               0x14:"liftServoFront",
-    #               0x93:"liftServoBack",
-    #               0x32:"spinMotor"}
-    motorNames = {0x14:"liftServoFront",
+    motorNames = {0x08:"wheelMotorFront",
+                  0x3C:"wheelMotorBack",
+                  0x14:"liftServoFront",
                   0x93:"liftServoBack",
                   0x32:"spinMotor"}
-    robot = {'count':3, 'names': motorNames}
+    robot = {'count':5, 'names': motorNames}
   else:
     robot = None
   cfg = {'windowSize' : [160,120]}
