@@ -165,6 +165,7 @@ class Auto(Plan):
 
             ##new version using PF state estimate
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+
             curr_waypoint, next_waypoint = convert_waypoint(waypoints[0]), convert_waypoint(waypoints[1]) 
             self.pos, self.ang = self.robSim.pf.estimated_pose()
             progress("est pos:" + str(self.pos))
