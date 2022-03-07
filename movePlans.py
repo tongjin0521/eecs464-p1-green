@@ -73,16 +73,12 @@ class TurnClass(Plan):
         Plan.__init__(self, app)
         self.robSim = robSim
         self.ang = 0.05
-        self.step_size = 1 / 180 * np.pi  
         self.absolute = False
-        self.dt = 0.1
+        self.waiting_time = 1
 
     def behavior(self):
-        step_num = abs(self.ang) / self.step_size
-        print(step_num,self.ang)
-        for k in range(int(step_num)):
-            self.robSim.turn(self.step_size * np.sign(self.ang))
-            yield self.forDuration(self.dt)
+        self.robSim.turn(self.ang)
+        yield self.forDuration(self.waiting_time)
 
 class Auto(Plan):
     """

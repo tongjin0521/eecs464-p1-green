@@ -101,12 +101,12 @@ class RobotSim( RobotSimInterface ):
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
             pass
         currentPos = self.servo.spinMotor.get_pos()
-        print(currentPos)
+        # print(currentPos)
         movePos = currentPos-degrees*100
         if absolute:
             movePos = self.spinMotorOffset-degrees*100
         self.servo.spinMotor.set_pos(movePos)
-        print(movePos)
+        # print(movePos)
         if self.pf:
             self.pf.turn_update(ang)
 
