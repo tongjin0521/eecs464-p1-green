@@ -118,7 +118,7 @@ class RobotSimulatorApp( JoyApp ):
     if evt.type == KEYDOWN:
       say = "(2022W-P1-GREEN) "
       ##TURN AND STEP SIZE CONSTANTS
-      da, dx = 10 *(math.pi/180), 5
+      da, dx = 90 *(math.pi/180), 5
       if evt.key in key_set:
         self.stop_all_plans()
       if evt.key == K_a:
