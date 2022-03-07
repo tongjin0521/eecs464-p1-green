@@ -5,6 +5,7 @@ Created on Thu Sep  4 20:31:13 2014
 @author: shrevzen-home
 """
 import sys, os
+from typing import final
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
 
@@ -83,8 +84,8 @@ class RobotSim( RobotSimInterface ):
         self.servo.wheelMotorBack.set_speed(10)
         self.servo.liftServoFront.set_mode(0)
         self.servo.liftServoBack.set_mode(0)
-        self.servo.liftServoFront.set_speed(3)
-        self.servo.liftServoBack.set_speed(3)
+        self.servo.liftServoFront.set_speed(6)
+        self.servo.liftServoBack.set_speed(6)
         self.servo.liftServoFront.set_pos(0)
         self.servo.liftServoBack.set_pos(0)
         self.servo.spinMotor.set_mode(2)
@@ -125,7 +126,8 @@ class RobotSim( RobotSimInterface ):
         #numRotations is postive for forward and negative for backward
         wheel_radius = 4.8
         numRotations = dist / (wheel_radius * 2 *np.pi)
-        stepSize = 10 * 100  #degrees
+        print(dist,numRotations)
+        stepSize = 1  #degrees
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
         posBack = self.servo.wheelMotorBack.get_pos()
@@ -133,19 +135,26 @@ class RobotSim( RobotSimInterface ):
         #Original position
         posFrontOrig = posFront
         posBackOrig = posBack
-
-        numSteps = abs(math.floor(numRotations * 360 * 100/ stepSize * 100))
-        # print(numSteps)
+        print("---init---")
+        print(posFrontOrig)
+        print(posBackOrig)
+        numSteps = abs(math.floor(numRotations * 360 / stepSize ))
+        print(numSteps)
         for i in range(int(numSteps)):
-            print(i)
-            posFront += stepSize*np.sign(dist)
-            posBack  += stepSize*np.sign(dist)
+            # print("--------")
+            # print(posFront)
+            # print(posBack)
+            posFront += stepSize*np.sign(dist) * 100
+            posBack  += stepSize*np.sign(dist) * 100
             self.servo.wheelMotorFront.set_pos(posFront)
             self.servo.wheelMotorBack.set_pos(posBack)
             # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
             #yield self.app.move.forDuration(1)
-        finalPosFront = posFrontOrig + numRotations*3600
-        finalPosBack  = posBackOrig  + numRotations*3600
+        finalPosFront = posFrontOrig + numRotations*36000
+        finalPosBack  = posBackOrig  + numRotations*36000
+        print("---final---")
+        print(finalPosFront)
+        print(finalPosBack)
         self.servo.wheelMotorFront.set_pos(finalPosFront)
         self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:

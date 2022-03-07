@@ -31,9 +31,10 @@ class MoveDistClass(Plan):
         # Distance to travel
         self.step_size = 1
         self.dist = 5
-        self.dt = 0.1
+        self.dt = 0.001
 
     def behavior(self):
+        self.dist *= 2.5
         step_num = abs(self.dist) / self.step_size
         for k in range(int(step_num)):
             self.robSim.move(self.step_size * np.sign(self.dist))
