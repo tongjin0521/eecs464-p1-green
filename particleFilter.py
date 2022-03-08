@@ -123,9 +123,9 @@ class Particle_Filter:
         return res0
 
     def update(self, measured_f, measured_b, a, b):
-        print("updating")
-        print("f: " + str(measured_f))
-        print("b: " + str(measured_b))
+        #print("updating")
+        #print("f: " + str(measured_f))
+        #print("b: " + str(measured_b))
         noise_est = 2.0
         ##discard distance measurements if they are about 0
         if(about_equal(measured_f, 0.0, noise_est) and about_equal(measured_b, 0.0, noise_est)):

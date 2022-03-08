@@ -73,6 +73,7 @@ class RobotSimulatorApp( JoyApp ):
     Display sensor readings
     """
     # This code should help you understand how you access sensor information
+    return
     ts,f,b = self.sensor.lastSensor
     if ts:
       progress( "Sensor: %4d f %d b %d" % (ts-self.T0,f,b)  )
@@ -118,7 +119,7 @@ class RobotSimulatorApp( JoyApp ):
     if evt.type == KEYDOWN:
       say = "(2022W-P1-GREEN) "
       ##TURN AND STEP SIZE CONSTANTS
-      da, dx = 90 *(math.pi/180), 5
+      da, dx = 5 *(math.pi/180), 2
       if evt.key in key_set:
         self.stop_all_plans()
       if evt.key == K_a:
@@ -137,12 +138,12 @@ class RobotSimulatorApp( JoyApp ):
         return progress(say + "Lifting Wheels")
       if evt.key == K_LEFT:
         self.turn.absolute = False
-        self.turn.ang = da
+        self.turn.ang = -da
         self.turn.start()
         return progress(say + "Turn left")
       if evt.key == K_RIGHT:
         self.turn.absolute = False
-        self.turn.ang = -da
+        self.turn.ang = da
         self.turn.start()
         return progress(say + "Turn right")
       if evt.key == K_r:
