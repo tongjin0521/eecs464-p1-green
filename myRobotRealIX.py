@@ -5,8 +5,8 @@ Created on Thu Sep  4 20:31:13 2014
 @author: shrevzen-home
 """
 import sys, os
-import matplotlib as plt
-import matplotlib.patches as patches
+import matplotlib.pyplot as plt
+import matplotlib.patches as Rectangle
 from typing import final
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
@@ -208,16 +208,16 @@ class RobotSim( RobotSimInterface ):
             for i in range(0, len(weights)):
                 weights[i] = translate(weights[i],min, max, 0.0, 1.0)
 
-        #TODO: only size-1 arrays can be converted to Python scalars
-        x = [int(x.real) for x in coordinates]
-        y = [int(y.imag) for y in coordinates]
+        x = [int(x[0]) for x in coordinates]
+        y = [int(y[1]) for y in coordinates]
 
         wptx = [int(wpt.real) for wpt in waypoints]
         wpty = [int(wpt.imag) for wpt in waypoints]
 
         #plot the waypoints as rectangles
         ax = plt.gca()
-        rect = patches.Rectangle((wptx, wpty), 10, 10, 0.0)
+        #TODO: TypeError: 'module' object is not callable
+        rect = Rectangle((wptx, wpty), 10, 10, linewidth=1,edgecolor='r', facecolor='none')
         ax.add_patch(rect)
 
         #plot the waypoints

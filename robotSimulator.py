@@ -67,6 +67,7 @@ class RobotSimulatorApp( JoyApp ):
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
     self.autoP = Auto(self, self.robSim, self.sensor)
+    #TODO: if '-r' in sys.argv (there's no robSim.plot() in sim)
     self.robSim.plot()
 
   def showSensors( self ):
