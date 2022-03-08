@@ -85,6 +85,8 @@ class Auto(Plan):
         self.sensorP = sensorP
         self.pos = [0, 0]
         self.front_or_back = True
+        self.waypoint_from = None
+        self.waypoint_to = None
 
     def nearest_turn(self,curr_ang,target_ang):
         front_near_angle = target_ang - curr_ang
@@ -124,9 +126,14 @@ class Auto(Plan):
         #start_angle = np.angle(difference[0] + difference[0]*1j) # radian
 
         #this will need to change in the real simulator to waypoint values
-        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-        self.robSim.pf = Particle_Filter(200 , list_to_complex(convert_waypoint(waypoints[0])), 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
-
+        assert(self.waypoint_to != None)
+        # progress(self.waypoint_to)
+        self.waypoint_to = list_to_complex(convert_waypoint(self.waypoint_to))
+        self.waypoint_from = self.waypoint_to
+        self.waypoint_to = list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
+        # progress(self.waypoint_from)
+        self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+        
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -154,28 +161,41 @@ class Auto(Plan):
             '''
 
             ##new version using PF state estimate
-            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+            
 
-            curr_waypoint, next_waypoint = convert_waypoint(waypoints[0]), convert_waypoint(waypoints[1]) 
+            curr_waypoint, next_waypoint = self.waypoint_from, self.waypoint_to
             self.pos, self.ang = self.robSim.pf.estimated_pose()
             # progress("est pos:" + str(self.pos))
             # progress("est ang:" + str(self.ang))
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 # we hit a waypoint and are heading for a new one
+                self.waypoint_from = self.waypoint_to
+                self.waypoint_to =  list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
                 progress("WAYPOINT REACHED")
-                self.robSim.pf.waypoint_update(self.pos,self.ang)
+                self.robSim.pf.waypoint_update(self.waypoint_from,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
             
             #position / distance
-            difference = [next_waypoint[0] - self.pos.real, (next_waypoint[1] - self.pos.imag)]
+            difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
             distance = linalg.norm(difference)
             #angle
             angle = np.angle(self.ang.real + self.ang.imag*1j) # radian
-            target_angle = np.angle(next_waypoint[0] - self.pos.real + (next_waypoint[1] - self.pos.imag) * 1j) # radian
+            target_angle = np.angle(next_waypoint.real - self.pos.real + (next_waypoint.imag - self.pos.imag) * 1j) # radian
 
             turn_rads,self.front_or_back = self.nearest_turn(angle,target_angle)
             
-            
+            progress("------------------------")
+            progress("pos: " + str(self.pos))
+            progress("target_pos: " + str(next_waypoint))
+            progress("diff: " + str(difference))
+            progress("dist: " + str(distance))
+            progress("angle: " + str(angle / np.pi * 180))
+            progress("target_ang: " + str(target_angle / np.pi *180))
+            progress("turn: " + str(turn_rads /np.pi * 180))
+            progress("moveing torwards: " + str(self.front_or_back))
+            progress("------------------------")
+
+
             #if we think we are at a waypoint
             min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
             if(distance < min_distance_threshold):
@@ -213,16 +233,16 @@ class Auto(Plan):
                     # progress("turn")
 
                     #debug 
-                    progress("------------------------")
-                    progress("pos: " + str(self.pos))
-                    progress("target_pos: " + str(next_waypoint))
-                    progress("diff: " + str(difference))
-                    progress("dist: " + str(distance))
-                    progress("angle: " + str(angle / np.pi * 180))
-                    progress("target_ang: " + str(target_angle / np.pi *180))
-                    progress("turn: " + str(turn_rads /np.pi * 180))
-                    progress("moveing torwards: " + str(self.front_or_back))
-                    progress("------------------------")
+                    # progress("------------------------")
+                    # progress("pos: " + str(self.pos))
+                    # progress("target_pos: " + str(next_waypoint))
+                    # progress("diff: " + str(difference))
+                    # progress("dist: " + str(distance))
+                    # progress("angle: " + str(angle / np.pi * 180))
+                    # progress("target_ang: " + str(target_angle / np.pi *180))
+                    # progress("turn: " + str(turn_rads /np.pi * 180))
+                    # progress("moveing torwards: " + str(self.front_or_back))
+                    # progress("------------------------")
 
                     self.app.turn.ang = turn_rads
                     self.app.turn.start()
@@ -239,7 +259,7 @@ class Auto(Plan):
                     self.app.move.dist = step_size * self.front_or_back
 
                 ts,f,b = self.sensorP.lastSensor
-                self.robSim.pf.update(f, b, list_to_complex(next_waypoint),list_to_complex(curr_waypoint))
+                # self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
 
                 # for particle in self.robSim.pf.particles:
                 #     progress(str(particle.weight))

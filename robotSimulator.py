@@ -67,6 +67,7 @@ class RobotSimulatorApp( JoyApp ):
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
     self.autoP = Auto(self, self.robSim, self.sensor)
+    
 
   def showSensors( self ):
     """
@@ -147,7 +148,11 @@ class RobotSimulatorApp( JoyApp ):
         self.turn.start()
         return progress(say + "Turn right")
       if evt.key == K_r:
-        return progress(say + "RESET")
+        while (self.sensor.lastWaypoints[0] == 0):
+          progress(self.sensor.lastWaypoints)
+          pass
+        self.autoP.waypoint_to = self.sensor.lastWaypoints[1][0]
+        return progress(say + "RECORD")
       if evt.key == K_q:
         progress("--------EDR--------")
         self.stop()
