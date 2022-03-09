@@ -17,7 +17,7 @@ except ImportError:
 
 from joy import progress
 
-from particleFilter import Particle_Filter
+from particleFilter import Particle_Filter, about_equal
 
 from waypointShared import lineSensorResponse, lineDist
 
@@ -133,7 +133,8 @@ class Auto(Plan):
         self.waypoint_to = list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
         # progress(self.waypoint_from)
         self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
-        
+        self.within_min_distnace = False
+
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -144,29 +145,9 @@ class Auto(Plan):
             #   5. if we are really close to the target, we tend to have great angle diff, but in that way, we actually dont need to change our angle
             #   6. following point 5, we may want to turn to the desired angle when we get close to the target and turn it once for all
 
-            ##old version using basic state estimate
-            ''' 
-            ##fetch position and angle estimates as well as waypoint locations
-            self.pos = c_[self.robSim.posEst.real, self.robSim.posEst.imag]
-            self.ang = c_[self.robSim.angEst.real, self.robSim.angEst.imag]
-            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-            curr_waypoint, next_waypoint = waypoints[0], waypoints[1]
-
-            ##compute angle and direction to turn and move
-            difference = next_waypoint - self.pos
-            distance = linalg.norm(difference)
-            angle = np.angle(self.robSim.angEst.real + self.robSim.angEst.imag*1j) # radian
-            target_angle = np.angle(difference[0][0] + difference[0][1]*1j) # radian
-            turn_rads = target_angle - angle
-            '''
-
-            ##new version using PF state estimate
-            
-
             curr_waypoint, next_waypoint = self.waypoint_from, self.waypoint_to
             self.pos, self.ang = self.robSim.pf.estimated_pose()
-            # progress("est pos:" + str(self.pos))
-            # progress("est ang:" + str(self.ang))
+
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 # we hit a waypoint and are heading for a new one
                 self.waypoint_from = self.waypoint_to
@@ -174,6 +155,7 @@ class Auto(Plan):
                 progress("WAYPOINT REACHED")
                 self.robSim.pf.waypoint_update(self.waypoint_from,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
+                self.within_min_distnace = False
             
             #position / distance
             difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
@@ -192,30 +174,44 @@ class Auto(Plan):
             progress("angle: " + str(angle / np.pi * 180))
             progress("target_ang: " + str(target_angle / np.pi *180))
             progress("turn: " + str(turn_rads /np.pi * 180))
-            progress("moveing torwards: " + str(self.front_or_back))
+            progress("moving torwards: " + str(self.front_or_back))
             progress("------------------------")
 
 
             #if we think we are at a waypoint
-            min_distance_threshold = 0.01 #TODO fix this value... it should be if distance is very small... how small ... within tag?
-            if(distance < min_distance_threshold):
-                #TODO calculate covariance
+            min_distance_threshold = 5 #TODO fix this value... it should be if distance is very small... how small ... within tag?
+            
+            #we think we are close to waypoint and then see that we pass the end of the line
+            ts,f,b = self.sensorP.lastSensor
+            noise_est = 10.0
+            if(self.within_min_distnace and about_equal(f, 0.0, noise_est)):
                 #TODO maybe drive straight some more first ... evaluate with testing
                 #turn and move along covariance direction
                 #possibly add spiral or more robust failure case
-                progress("failed to reach waypoint in standard method")
+                progress(" \n\n\n\n FAILED to reach waypoint in standard method \n\n\n\n")
                 x = self.robSim.pf.particles.pos.real
                 y = self.robSim.pf.particles.pos.imag
                 c = np.cov(x, y)
                 covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
-                turn_rads = covariance_angle - angle
-                
+                turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
+
                 #execute turn
                 self.app.turn.ang = turn_rads
                 self.app.turn.start()
                 yield self.forDuration(2)
 
-                #drive back and forth some amount -- should probably be linked to particle positions
+                #drive back and forth some amount 
+                #TODO should probably be linked to particle positions
+                
+                #back and forth amount
+                bf_amount = 10.0
+                self.app.move.dist = bf_amount * self.front_or_back
+                self.app.move.start()
+                yield self.forDuration(2)
+
+                self.app.move.dist = bf_amount * self.front_or_back * -1
+                self.app.move.start()
+                yield self.forDuration(2)
 
                 #while waypoint number is the same
                     #drive back and forth more and more  
@@ -224,12 +220,14 @@ class Auto(Plan):
 
             #default case for movement to waypoint
             else:
-                ##execute turn#############################################################
                 #min turn angle of 3 degrees - approx acc. of servo
                 # TODO tune this value more
                 min_turn_angle = 3.0 * np.pi / 180.0
-                # progress(str(turn_rads))
-                if(abs(turn_rads) > min_turn_angle and distance > 5):
+
+                if distance < min_distance_threshold:
+                    self.within_min_distnace = True
+                    
+                elif(abs(turn_rads) > min_turn_angle and distance > min_distance_threshold):
                     # progress("turn")
 
                     #debug 
@@ -241,7 +239,7 @@ class Auto(Plan):
                     # progress("angle: " + str(angle / np.pi * 180))
                     # progress("target_ang: " + str(target_angle / np.pi *180))
                     # progress("turn: " + str(turn_rads /np.pi * 180))
-                    # progress("moveing torwards: " + str(self.front_or_back))
+                    # progress("moving torwards: " + str(self.front_or_back))
                     # progress("------------------------")
 
                     self.app.turn.ang = turn_rads
@@ -249,7 +247,6 @@ class Auto(Plan):
                     yield self.forDuration(2)
 
 
-                ##execute move##############################################################
                 #only move by at most step_size
                 #TODO tune this value
                 step_size = 10
@@ -258,7 +255,7 @@ class Auto(Plan):
                 else:
                     self.app.move.dist = step_size * self.front_or_back
 
-                ts,f,b = self.sensorP.lastSensor
+                #ts,f,b = self.sensorP.lastSensor
                 # self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
 
                 # for particle in self.robSim.pf.particles:
