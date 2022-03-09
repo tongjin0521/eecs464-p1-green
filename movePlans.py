@@ -19,7 +19,7 @@ from joy import progress
 
 from particleFilter import Particle_Filter, about_equal
 
-from waypointShared import lineSensorResponse, lineDist
+from waypointShared import Sensor
 
 # VERY IMPORTANT ########################################################################################################
 #determines if we are running real or simulated robot
@@ -60,8 +60,24 @@ class LiftWheelsClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
+    
     def behavior(self):
         yield self.robSim.liftWheels()
+
+        for i in range(0,20):
+            #set to 90
+            self.robSim.set_away()
+            yield self.forDuration(1)
+            
+            #set to 45
+            self.robSim.set_near()
+            yield self.forDuration(1)
+
+            #read
+            self.robSim.get_reading()
+
+        self.robSim.print_values()
+        #yield self.robSim.liftWheels()
 
 class TurnClass(Plan):
     def __init__(self, app, robSim):
@@ -156,6 +172,7 @@ class Auto(Plan):
                 self.robSim.pf.waypoint_update(self.waypoint_from,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
                 self.within_min_distnace = False
+                #TODO - should we call motor stop here - maybe not if we want to try to get to center of the waypoint
             
             #position / distance
             difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
@@ -200,10 +217,9 @@ class Auto(Plan):
                 self.app.turn.start()
                 yield self.forDuration(2)
 
-                #drive back and forth some amount 
-                #TODO should probably be linked to particle positions
-                
+                #drive back and forth some amount                 
                 #back and forth amount
+                #TODO should probably be linked to particle positions
                 bf_amount = 10.0
                 self.app.move.dist = bf_amount * self.front_or_back
                 self.app.move.start()
@@ -263,4 +279,5 @@ class Auto(Plan):
 
                 self.app.move.start()
                 yield self.forDuration(2)
+
         yield

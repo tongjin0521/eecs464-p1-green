@@ -75,7 +75,7 @@ class RobotSim( RobotSimInterface ):
         # initialize motors
         self.app = app
         self.servo = self.app.robot.at
-        self.liftAngle = 5000 #Must change to our specs
+        self.liftAngle = 3500 #Must change to our specs
         self.manualSpeed = 10 #this slow fr fr must change to our specs
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
@@ -93,24 +93,48 @@ class RobotSim( RobotSimInterface ):
         self.servo.spinMotor.set_pos(0)
         self.wheelsDown = False
         self.pf = None
+        readings = []
 
     def turn(self, ang, absolute=False):
-        degrees = -1.0 * ang * 180 / math.pi
+        degrees = - 1.0 * ang * 180 / math.pi
         if self.wheelsDown:
             self.liftWheels()
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
             pass
         currentPos = self.servo.spinMotor.get_pos()
-        # print(currentPos)
         movePos = currentPos-degrees*100
         if absolute:
             movePos = self.spinMotorOffset-degrees*100
         self.servo.spinMotor.set_pos(movePos)
-        # print(movePos)
         if self.pf:
             self.pf.turn_update(ang)
+    
+    def set_away(self):
+        #do for both distance servos and movement servos
+        #angle error test
+        #set pos away
+        self.servo.spinMotor.setpos(90000)
+
+    def set_near(self):
+        self.servo.spinMotor.setpos(45000)
+
+    def get_reading(self):
+        self.readings.append(self.servo.spinMotor.getpos() - 45000)
+
+    def print_values(self):
+        print("max error: " + np.max(self.readings))
+        print("min error: " + np.min(self.readings))
+        print("avg error: " + np.mean(self.readings))
 
     def liftWheels(self):
+        
+        ##TESTING ONLY 
+        ##WILL BREAK STUFF
+
+        self.servo.liftServoFront.set_pos(0) #assuming 0=up
+        self.servo.liftServoBack.set_pos(0)
+
+        '''
         self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
         self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
         if self.wheelsDown:
@@ -121,6 +145,7 @@ class RobotSim( RobotSimInterface ):
             self.servo.liftServoFront.set_pos(self.liftAngle)
             self.servo.liftServoBack.set_pos(self.liftAngle)
             self.wheelsDown = True
+        '''
 
     def move(self, dist):
         if not self.wheelsDown:
@@ -128,35 +153,35 @@ class RobotSim( RobotSimInterface ):
         #numRotations is postive for forward and negative for backward
         wheel_radius = 4.8
         numRotations = dist / (wheel_radius * 2 *np.pi)
-        # print(dist,numRotations)
+        print(dist,numRotations)
         stepSize = 1  #degrees
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
         posBack = self.servo.wheelMotorBack.get_pos()
 
         #Original position
-        # posFrontOrig = posFront
-        # posBackOrig = posBack
-        # print("---init---")
-        # print(posFront)
-        # print(posBack)
-        # numSteps = abs(math.floor(numRotations * 360 / stepSize ))
-        # print(numSteps)
-        # for i in range(int(numSteps)):
-        #     # print("--------")
-        #     # print(posFront)
-        #     # print(posBack)
-        #     posFront += stepSize*np.sign(dist) * 100
-        #     posBack  += stepSize*np.sign(dist) * 100
-        #     self.servo.wheelMotorFront.set_pos(posFront)
-        #     self.servo.wheelMotorBack.set_pos(posBack)
-        #     # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
-        #     #yield self.app.move.forDuration(1)
-        finalPosFront = posFront + numRotations*36000
-        finalPosBack  = posBack  + numRotations*36000
-        # print("---final---")
-        # print(finalPosFront)
-        # print(finalPosBack)
+        posFrontOrig = posFront
+        posBackOrig = posBack
+        print("---init---")
+        print(posFrontOrig)
+        print(posBackOrig)
+        numSteps = abs(math.floor(numRotations * 360 / stepSize ))
+        print(numSteps)
+        for i in range(int(numSteps)):
+            # print("--------")
+            # print(posFront)
+            # print(posBack)
+            posFront += stepSize*np.sign(dist) * 100
+            posBack  += stepSize*np.sign(dist) * 100
+            self.servo.wheelMotorFront.set_pos(posFront)
+            self.servo.wheelMotorBack.set_pos(posBack)
+            # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
+            #yield self.app.move.forDuration(1)
+        finalPosFront = posFrontOrig + numRotations*36000
+        finalPosBack  = posBackOrig  + numRotations*36000
+        print("---final---")
+        print(finalPosFront)
+        print(finalPosBack)
         self.servo.wheelMotorFront.set_pos(finalPosFront)
         self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:
