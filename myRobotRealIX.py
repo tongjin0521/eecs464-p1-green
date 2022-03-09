@@ -217,7 +217,7 @@ class RobotSim( RobotSimInterface ):
         #plot the waypoints as rectangles
         ax = plt.gca()
         #TODO: TypeError: 'module' object is not callable
-        rect = Rectangle((wptx, wpty), 10, 10, linewidth=1,edgecolor='r', facecolor='none')
+        rect = Rectangle((wptx, wpty), 10, 10)
         ax.add_patch(rect)
 
         #plot the waypoints
