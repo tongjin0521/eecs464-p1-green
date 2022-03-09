@@ -6,7 +6,7 @@ Created on Thu Sep  4 20:31:13 2014
 """
 import sys, os
 import matplotlib.pyplot as plt
-import matplotlib.patches as Rectangle
+from matplotlib.patches import Rectangle
 from typing import final
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
@@ -216,7 +216,6 @@ class RobotSim( RobotSimInterface ):
 
         #plot the waypoints as rectangles
         ax = plt.gca()
-        #TODO: TypeError: 'module' object is not callable
         rect = Rectangle((wptx, wpty), 10, 10)
         ax.add_patch(rect)
 
