@@ -86,11 +86,11 @@ class RobotSim( RobotSimInterface ):
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(6)
         self.servo.liftServoBack.set_speed(6)
-        self.servo.liftServoFront.set_pos(0)
-        self.servo.liftServoBack.set_pos(0)
+        # self.servo.liftServoFront.set_pos(0)
+        # self.servo.liftServoBack.set_pos(0)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
-        self.servo.spinMotor.set_pos(0)
+        # self.servo.spinMotor.set_pos(0)
         self.wheelsDown = False
         self.pf = None
 
