@@ -93,23 +93,23 @@ class RobotSim( RobotSimInterface ):
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
         self.servo.wheelMotorBack.set_mode('cont')
-        self.servo.wheelMotorFront.set_speed(10)
-        self.servo.wheelMotorBack.set_speed(10)
+        self.servo.wheelMotorFront.set_speed(20)
+        self.servo.wheelMotorBack.set_speed(20)
         self.servo.liftServoFront.set_mode(0)
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(6)
         self.servo.liftServoBack.set_speed(6)
-        self.servo.liftServoFront.set_pos(0)
-        self.servo.liftServoBack.set_pos(0)
+        # self.servo.liftServoFront.set_pos(0)
+        # self.servo.liftServoBack.set_pos(0)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
-        self.servo.spinMotor.set_pos(0)
+        # self.servo.spinMotor.set_pos(0)
         self.wheelsDown = False
         self.pf = Particle_Filter(10, 0+0j,1+0j , init_pos_noise=1, init_angle_noise=np.pi/180)
         self.sensorP = sensor
 
     def turn(self, ang, absolute=False):
-        degrees = - 1.0 * ang * 180 / math.pi
+        degrees = -1.0 * ang * 180 / math.pi
         if self.wheelsDown:
             self.liftWheels()
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
@@ -145,32 +145,32 @@ class RobotSim( RobotSimInterface ):
         #numRotations is postive for forward and negative for backward
         wheel_radius = 4.8
         numRotations = dist / (wheel_radius * 2 *np.pi)
-        print(dist,numRotations)
+        # print(dist,numRotations)
         stepSize = 1  #degrees
         #Front motor
         posFront = self.servo.wheelMotorFront.get_pos()
         posBack = self.servo.wheelMotorBack.get_pos()
 
         #Original position
-        posFrontOrig = posFront
-        posBackOrig = posBack
+        # posFrontOrig = posFront
+        # posBackOrig = posBack
         # print("---init---")
-        # print(posFrontOrig)
-        # print(posBackOrig)
-        numSteps = abs(math.floor(numRotations * 360 / stepSize ))
-        print(numSteps)
-        for i in range(int(numSteps)):
-            # print("--------")
-            # print(posFront)
-            # print(posBack)
-            posFront += stepSize*np.sign(dist) * 100
-            posBack  += stepSize*np.sign(dist) * 100
-            self.servo.wheelMotorFront.set_pos(posFront)
-            self.servo.wheelMotorBack.set_pos(posBack)
-            # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
-            #yield self.app.move.forDuration(1)
-        finalPosFront = posFrontOrig + numRotations*36000
-        finalPosBack  = posBackOrig  + numRotations*36000
+        # print(posFront)
+        # print(posBack)
+        # numSteps = abs(math.floor(numRotations * 360 / stepSize ))
+        # print(numSteps)
+        # for i in range(int(numSteps)):
+        #     # print("--------")
+        #     # print(posFront)
+        #     # print(posBack)
+        #     posFront += stepSize*np.sign(dist) * 100
+        #     posBack  += stepSize*np.sign(dist) * 100
+        #     self.servo.wheelMotorFront.set_pos(posFront)
+        #     self.servo.wheelMotorBack.set_pos(posBack)
+        #     # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
+        #     #yield self.app.move.forDuration(1)
+        finalPosFront = posFront + numRotations*36000
+        finalPosBack  = posBack  + numRotations*36000
         # print("---final---")
         # print(finalPosFront)
         # print(finalPosBack)
