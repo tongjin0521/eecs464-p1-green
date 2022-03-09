@@ -123,9 +123,9 @@ class Particle_Filter:
         return res0
 
     def update(self, measured_f, measured_b, a, b):
-        print("updating")
-        print("f: " + str(measured_f))
-        print("b: " + str(measured_b))
+        #print("updating")
+        #print("f: " + str(measured_f))
+        #print("b: " + str(measured_b))
         noise_est = 2.0
         ##discard distance measurements if they are about 0
         if(about_equal(measured_f, 0.0, noise_est) and about_equal(measured_b, 0.0, noise_est)):
@@ -141,7 +141,7 @@ class Particle_Filter:
         #for particle in self.particles:
         for i in range(0, len(self.particles)):
             #particle_distance = self.Sensor.sense(None, self.particles[i].pos, a, b) ##TODO
-            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 6.816))
+            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 9.4))
             #print(particle_distance)
             if(particle_distance > max_sense):
                 max_sense = particle_distance
