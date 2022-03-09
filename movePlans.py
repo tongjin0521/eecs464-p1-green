@@ -134,7 +134,8 @@ class Auto(Plan):
         # progress(self.waypoint_from)
         self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
         self.within_min_distnace = False
-
+        failure_mode = False
+        fb_time = 0
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -156,6 +157,8 @@ class Auto(Plan):
                 self.robSim.pf.waypoint_update(self.waypoint_from,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
                 self.within_min_distnace = False
+                failure_mode = False
+                fb_time = 0
             
             #position / distance
             difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
@@ -184,34 +187,46 @@ class Auto(Plan):
             #we think we are close to waypoint and then see that we pass the end of the line
             ts,f,b = self.sensorP.lastSensor
             noise_est = 10.0
-            if(self.within_min_distnace and about_equal(f, 0.0, noise_est)):
+            
+            if distance <= 1.5 or failure_mode:
+            # if(self.within_min_distnace and about_equal(f, 0.0, noise_est)):
                 #TODO maybe drive straight some more first ... evaluate with testing
                 #turn and move along covariance direction
                 #possibly add spiral or more robust failure case
+                
                 progress(" \n\n\n\n FAILED to reach waypoint in standard method \n\n\n\n")
-                x = self.robSim.pf.particles.pos.real
-                y = self.robSim.pf.particles.pos.imag
-                c = np.cov(x, y)
-                covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
-                turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
-
-                #execute turn
-                self.app.turn.ang = turn_rads
-                self.app.turn.start()
-                yield self.forDuration(2)
+                if (not failure_mode):
+                    x = self.robSim.pf.particles.pos.real
+                    y = self.robSim.pf.particles.pos.imag
+                    c = np.cov(x, y)
+                    covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
+                    turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
+                    #execute turn
+                    self.app.turn.ang = turn_rads
+                    self.app.turn.start()
+                    yield self.forDuration(2)
+                    failure_mode = True
+                
+                
 
                 #drive back and forth some amount 
                 #TODO should probably be linked to particle positions
                 
                 #back and forth amount
-                bf_amount = 10.0
-                self.app.move.dist = bf_amount * self.front_or_back
-                self.app.move.start()
-                yield self.forDuration(2)
-
-                self.app.move.dist = bf_amount * self.front_or_back * -1
-                self.app.move.start()
-                yield self.forDuration(2)
+                if fb_time >= 0:
+                    bf_amount = 2.0
+                    self.app.move.dist = bf_amount * self.front_or_back
+                    self.app.move.start()
+                    yield self.forDuration(2)
+                    fb_time += 1
+                    if fb_time ==5:
+                        fb_time = -1
+                else:
+                    fb_time -= 1
+                    if fb_time > -7:
+                        self.app.move.dist = bf_amount * self.front_or_back * -1
+                        self.app.move.start()
+                        yield self.forDuration(2)
 
                 #while waypoint number is the same
                     #drive back and forth more and more  
@@ -256,7 +271,7 @@ class Auto(Plan):
                     self.app.move.dist = step_size * self.front_or_back
 
                 #ts,f,b = self.sensorP.lastSensor
-                # self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
+                self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
 
                 # for particle in self.robSim.pf.particles:
                 #     progress(str(particle.weight))

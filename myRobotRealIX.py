@@ -75,13 +75,13 @@ class RobotSim( RobotSimInterface ):
         # initialize motors
         self.app = app
         self.servo = self.app.robot.at
-        self.liftAngle = 5000 #Must change to our specs
+        self.liftAngle = 3000 #Must change to our specs
         self.manualSpeed = 10 #this slow fr fr must change to our specs
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
         self.servo.wheelMotorBack.set_mode('cont')
-        self.servo.wheelMotorFront.set_speed(10)
-        self.servo.wheelMotorBack.set_speed(10)
+        self.servo.wheelMotorFront.set_speed(20)
+        self.servo.wheelMotorBack.set_speed(20)
         self.servo.liftServoFront.set_mode(0)
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(6)
