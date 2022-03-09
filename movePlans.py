@@ -119,7 +119,6 @@ class Auto(Plan):
         p_plot.start()
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
-            
             # TODO: 
             #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
             #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
@@ -218,7 +217,7 @@ class Auto(Plan):
                     self.app.turn.dur = 1
                     self.app.turn.N = 3
                     self.app.turn.start()
-                    yield self.forDuration(2)
+                    # yield self.forDuration(2)
 
 
                 ##execute move##############################################################
@@ -239,5 +238,5 @@ class Auto(Plan):
                 self.app.move.dur = 4
                 self.app.move.N = 5
                 self.app.move.start()
-                yield self.forDuration(5)
+                # yield self.forDuration(5)
         yield

@@ -10,6 +10,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from typing import final
+
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
 
@@ -109,6 +110,9 @@ class RobotSim( RobotSimInterface ):
         self.wheelsDown = False
         self.pf = Particle_Filter(10, 0+0j,1+0j , init_pos_noise=1, init_angle_noise=np.pi/180)
         self.sensorP = sensor
+        self.fig = None
+        self.x = None
+        self.y = None
 
     def turn(self, ang, absolute=False):
         degrees = - 1.0 * ang * 180 / math.pi
@@ -194,41 +198,47 @@ class RobotSim( RobotSimInterface ):
         # self.motors[-1].set_pos(angle(tag_heading)*18000/pi)
         pass
 
-    def refreshState(self):
-        #TODO: need to add particle filter plot updates
+    def refreshState(self):   
+        #update Particles
+        self.updateParticles()     
+        #update figure
+        fig.canvas.draw()
+        fig.canvas.flush_events()
         pass
     
     def plot(self):
-        while (True):
-            #store waypoints
-            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+        plt.ion()
+        #update particles
+        self.updateParticle()
+        #store waypoints
+        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+        #plot the particles
+        self.fig = plt.scatter(x,y)
 
-            coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
-            #store particle weights
-            weights = [float(particle.weight) for particle in self.pf.particles]
-            max = np.max(weights)
-            min = np.min(weights)
-            if(max != min):
-                for i in range(0, len(weights)):
-                    weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+        wptx = [wpt[0] for wpt in waypoints]
+        wpty = [wpt[1] for wpt in waypoints]
 
-            x = [int(x[0]) for x in coordinates]
-            y = [int(y[1]) for y in coordinates]
+        #plot the waypoints as rectangles
+        for i in range(len(wptx)):
+            rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10, fill=False)
+            plt.gca().add_patch(rect)
+        #graph axes
+        plt.xlim([-100, 100])
+        plt.ylim([-100, 100])
+        #show plot
+        print("plotting")
+        matplotlib.use('QT5Agg')
+        plt.show()
+    
+    def updateParticle(self):
+        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+        #store particle weights in x,y
+        weights = [float(particle.weight) for particle in self.pf.particles]
+        max = np.max(weights)
+        min = np.min(weights)
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
 
-            wptx = [wpt[0] for wpt in waypoints]
-            wpty = [wpt[1] for wpt in waypoints]
-
-            #plot the waypoints as rectangles
-            for i in range(len(wptx)):
-                rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10, fill=False)
-                plt.gca().add_patch(rect)
-            # print(x,y)
-            #plot the waypoints
-            plt.scatter(x,y)
-            #graph axes
-            plt.xlim([-100, 100])
-            plt.ylim([-100, 100])
-            #show plot
-            print("plotting")
-            matplotlib.use('QT5Agg')
-            plt.show()
+        self.x = [int(x[0]) for x in coordinates]
+        self.y = [int(y[1]) for y in coordinates]
