@@ -5,6 +5,8 @@ Created on Thu Sep  4 20:31:13 2014
 @author: shrevzen-home
 """
 import sys, os
+from turtle import width
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as Rectangle
 from typing import final
@@ -31,7 +33,7 @@ from movePlans import Auto
 #function returns vals previously scaled to range of [leftMin, leftMax] to vals scaled to range of [rightMin, rightMax]
 def translate(val, leftMin, leftMax, rightMin, rightMax):
   #scale each range of vals
-  leftScale = lefMax - leftMin
+  leftScale = leftMax - leftMin
   rightScale = rightMax - rightMin
   #scale the vals according to left range
   valScale = float(val - leftMin) / float(leftScale)
@@ -99,11 +101,11 @@ class RobotSim( RobotSimInterface ):
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(6)
         self.servo.liftServoBack.set_speed(6)
-        self.servo.liftServoFront.set_pos(0)
-        self.servo.liftServoBack.set_pos(0)
+        # self.servo.liftServoFront.set_pos(0)
+        # self.servo.liftServoBack.set_pos(0)
         self.servo.spinMotor.set_mode(2)
         self.servo.spinMotor.set_speed(7)
-        self.servo.spinMotor.set_pos(0)
+        # self.servo.spinMotor.set_pos(0)
         self.wheelsDown = False
         self.pf = Particle_Filter(10, 0+0j,1+0j , init_pos_noise=1, init_angle_noise=np.pi/180)
         self.sensorP = sensor
@@ -119,24 +121,24 @@ class RobotSim( RobotSimInterface ):
         movePos = currentPos-degrees*100
         if absolute:
             movePos = self.spinMotorOffset-degrees*100
-        self.servo.spinMotor.set_pos(movePos)
+        # self.servo.spinMotor.set_pos(movePos)
         # print(movePos)
         if self.pf:
             self.pf.turn_update(ang)
 
     def liftWheels(self):
         #stop wheels
-        self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
-        self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
+        # self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
+        # self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
         if self.wheelsDown:
             #if wheels are down, set them to pos 0 (up)
-            self.servo.liftServoFront.set_pos(0)
-            self.servo.liftServoBack.set_pos(0)
+            # self.servo.liftServoFront.set_pos(0)
+            # self.servo.liftServoBack.set_pos(0)
             self.wheelsDown = False
         else:
             #else they're already up, set them to liftAngle (down)
-            self.servo.liftServoFront.set_pos(self.liftAngle)
-            self.servo.liftServoBack.set_pos(self.liftAngle)
+            # self.servo.liftServoFront.set_pos(self.liftAngle)
+            # self.servo.liftServoBack.set_pos(self.liftAngle)
             self.wheelsDown = True
 
     def move(self, dist):
@@ -165,8 +167,8 @@ class RobotSim( RobotSimInterface ):
             # print(posBack)
             posFront += stepSize*np.sign(dist) * 100
             posBack  += stepSize*np.sign(dist) * 100
-            self.servo.wheelMotorFront.set_pos(posFront)
-            self.servo.wheelMotorBack.set_pos(posBack)
+            # self.servo.wheelMotorFront.set_pos(posFront)
+            # self.servo.wheelMotorBack.set_pos(posBack)
             # yield self.app.move.forDuration((stepSize / self.manualSpeed) * 60 + 0.05)
             #yield self.app.move.forDuration(1)
         finalPosFront = posFrontOrig + numRotations*36000
@@ -174,8 +176,8 @@ class RobotSim( RobotSimInterface ):
         # print("---final---")
         # print(finalPosFront)
         # print(finalPosBack)
-        self.servo.wheelMotorFront.set_pos(finalPosFront)
-        self.servo.wheelMotorBack.set_pos(finalPosBack)
+        # self.servo.wheelMotorFront.set_pos(finalPosFront)
+        # self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:
             self.pf.move_update(dist)
 
@@ -189,41 +191,45 @@ class RobotSim( RobotSimInterface ):
         #   |
         # For example, when tag_heading == 1 the tag is pointing to +x
         # when tag_heading == -1j the tag is pointing to -y
-        self.motors[-1].set_pos(angle(tag_heading)*18000/pi)
+        # self.motors[-1].set_pos(angle(tag_heading)*18000/pi)
+        pass
 
     def refreshState(self):
         #TODO: need to add particle filter plot updates
         pass
     
     def plot(self):
-        #store waypoints
-        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+        while (True):
+            #store waypoints
+            new_time_waypoints, waypoints = self.sensorP.lastWaypoints
 
-        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
-        #store particle weights
-        weights = [float(particle.weight) for particle in self.pf.particles]
-        max = np.max(weights)
-        min = np.min(weights)
-        if(max != min):
-            for i in range(0, len(weights)):
-                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+            coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+            #store particle weights
+            weights = [float(particle.weight) for particle in self.pf.particles]
+            max = np.max(weights)
+            min = np.min(weights)
+            if(max != min):
+                for i in range(0, len(weights)):
+                    weights[i] = translate(weights[i],min, max, 0.0, 1.0)
 
-        x = [int(x[0]) for x in coordinates]
-        y = [int(y[1]) for y in coordinates]
+            x = [int(x[0]) for x in coordinates]
+            y = [int(y[1]) for y in coordinates]
 
-        wptx = [int(wpt.real) for wpt in waypoints]
-        wpty = [int(wpt.imag) for wpt in waypoints]
+            wptx = [wpt[0] for wpt in waypoints]
+            wpty = [wpt[1] for wpt in waypoints]
 
-        #plot the waypoints as rectangles
-        ax = plt.gca()
-        #TODO: TypeError: 'module' object is not callable
-        rect = Rectangle((wptx, wpty), 10, 10)
-        ax.add_patch(rect)
-
-        #plot the waypoints
-        plt.scatter(x,y,c=weights,cmap='green')
-        #graph axes
-        plt.xlim([-100, 100])
-        plt.ylim([-100, 100])
-        #show plot
-        plt.show()
+            #plot the waypoints as rectangles
+            #TODO: TypeError: 'module' object is not callable
+            for i in range(len(wptx)):
+                rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10)
+                plt.gca().add_patch(rect)
+            # print(x,y)
+            #plot the waypoints
+            plt.scatter(x,y)
+            #graph axes
+            plt.xlim([-100, 100])
+            plt.ylim([-100, 100])
+            #show plot
+            print("plotting")
+            matplotlib.use('QT5Agg')
+            plt.show()

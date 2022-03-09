@@ -20,6 +20,8 @@ from particleFilter import Particle_Filter
 
 from waypointShared import lineSensorResponse, lineDist
 
+import multiprocessing
+
 # VERY IMPORTANT ########################################################################################################
 #determines if we are running real or simulated robot
 real_robot = True
@@ -112,9 +114,12 @@ class Auto(Plan):
         #this will need to change in the real simulator to waypoint values
         new_time_waypoints, waypoints = self.sensorP.lastWaypoints
         self.robSim.pf = Particle_Filter(200 , list_to_complex(convert_waypoint(waypoints[0])), 1 + 0j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
-
+        
+        p_plot = multiprocessing.Process(target = self.robSim.plot())
+        p_plot.start()
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
+            
             # TODO: 
             #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
             #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
