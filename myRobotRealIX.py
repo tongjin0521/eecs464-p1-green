@@ -10,6 +10,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from typing import final
+
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
 
@@ -199,11 +200,45 @@ class RobotSim( RobotSimInterface ):
         pass
     
     def plot(self):
-<<<<<<< HEAD
-        while (True):
+        fig = plt.figure()
+        ax = fig.gca()
+        ax.set_xlim([-100,100])
+        ax.set_ylim([-100,100])
+        fig.canvas.draw()
+        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+        #store particle weights
+        weights = [float(particle.weight) for particle in self.pf.particles]
+        max = np.max(weights)
+        min = np.min(weights)
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+
+        x = [int(x[0]) for x in coordinates]
+        y = [int(y[1]) for y in coordinates]
+
+        wptx = [wpt[0] for wpt in waypoints]
+        wpty = [wpt[1] for wpt in waypoints]
+
+        plot_pf = ax.scatter(x,y)
+        matplotlib.use('QT5Agg')
+        plt.show(block = False)
+        plt.pause(0.1)
+        bg = fig.canvas.copy_from_bbox(fig.bbox)
+       
+        ax.draw_artist(plot_pf)
+        #plot the waypoints as rectangles
+        for i in range(len(wptx)):
+            rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10)
+            ax.draw_artist(rect)
+        fig.canvas.blit(fig.bbox)
+        
+    
+        while True:
+            fig.canvas.restore_region(bg)
             #store waypoints
             new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-
             coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
             #store particle weights
             weights = [float(particle.weight) for particle in self.pf.particles]
@@ -223,46 +258,7 @@ class RobotSim( RobotSimInterface ):
             #TODO: TypeError: 'module' object is not callable
             for i in range(len(wptx)):
                 rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10)
-                plt.gca().add_patch(rect)
-            # print(x,y)
-            #plot the waypoints
-            plt.scatter(x,y)
-            #graph axes
-            plt.xlim([-100, 100])
-            plt.ylim([-100, 100])
-            #show plot
-            print("plotting")
-            matplotlib.use('QT5Agg')
-            plt.show()
-=======
-        #store waypoints
-        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-
-        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
-        #store particle weights
-        weights = [float(particle.weight) for particle in self.pf.particles]
-        max = np.max(weights)
-        min = np.min(weights)
-        if(max != min):
-            for i in range(0, len(weights)):
-                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
-
-        x = [int(x[0]) for x in coordinates]
-        y = [int(y[1]) for y in coordinates]
-
-        wptx = [int(wpt.real) for wpt in waypoints]
-        wpty = [int(wpt.imag) for wpt in waypoints]
-
-        #plot the waypoints as rectangles
-        ax = plt.gca()
-        rect = Rectangle((wptx, wpty), 10, 10)
-        ax.add_patch(rect)
-
-        #plot the waypoints
-        plt.scatter(x,y,c=weights,cmap='green')
-        #graph axes
-        plt.xlim([-100, 100])
-        plt.ylim([-100, 100])
-        #show plot
-        plt.show()
->>>>>>> 1b382ac38e55c590ac468c4b37383459050de53d
+                ax.draw_artist(rect)
+            ax.draw_artist(ax.scatter(x,y))
+            fig.canvas.blit(fig.bbox)
+            fig.canvas.flush_events()
