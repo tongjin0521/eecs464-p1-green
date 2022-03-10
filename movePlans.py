@@ -222,7 +222,7 @@ class Auto(Plan):
                     self.app.turn.ang = np.pi /2
                     self.app.turn.start()
                     yield self.forDuration(2)
-                # TODO: speed up back
+                # TODO: speed up back & keep record of front_or_back since it might be changing
                 bf_amount = 5.0
                 lr_time = failure_trial % left_back_movement_num
                 if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
