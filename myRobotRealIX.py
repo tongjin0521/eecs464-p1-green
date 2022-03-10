@@ -202,8 +202,8 @@ class RobotSim( RobotSimInterface ):
         #update Particles
         self.updateParticles()     
         #update figure
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
         pass
     
     def plot(self):
@@ -213,7 +213,7 @@ class RobotSim( RobotSimInterface ):
         #store waypoints
         new_time_waypoints, waypoints = self.sensorP.lastWaypoints
         #plot the particles
-        self.fig = plt.scatter(x,y)
+        self.fig = plt.scatter(self.x,self.y)
 
         wptx = [wpt[0] for wpt in waypoints]
         wpty = [wpt[1] for wpt in waypoints]

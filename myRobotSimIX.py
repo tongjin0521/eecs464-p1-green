@@ -181,6 +181,9 @@ class RobotSim( RobotSimInterface ):
         else:
             print("WARNING - WRONG PLOT STYLE")
 
+    def plot(self):
+        pass
+
     def refreshState(self):
         # update particles
         
