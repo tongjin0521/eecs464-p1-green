@@ -1,4 +1,5 @@
 from cmath import phase
+from pickle import TRUE
 from turtle import back
 from numpy import (
     asarray, c_, dot, isnan, append, ones, reshape, mean,
@@ -134,8 +135,8 @@ class Auto(Plan):
         # progress(self.waypoint_from)
         self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
         self.within_min_distnace = False
-        failure_mode = False
-        fb_time = 0
+        failure_trial = 0
+        left_back_movement_num = 16
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -151,14 +152,18 @@ class Auto(Plan):
 
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 # we hit a waypoint and are heading for a new one
+                self.app.move.dist = 8 * self.front_or_back
+                self.app.move.start()
+                yield self.forDuration(2)
+
                 self.waypoint_from = self.waypoint_to
                 self.waypoint_to =  list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
+                curr_waypoint, next_waypoint = self.waypoint_from, self.waypoint_to
                 progress("WAYPOINT REACHED")
                 self.robSim.pf.waypoint_update(self.waypoint_from,self.ang)
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
                 self.within_min_distnace = False
-                failure_mode = False
-                fb_time = 0
+                failure_trial = 0
             
             #position / distance
             difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
@@ -188,51 +193,55 @@ class Auto(Plan):
             ts,f,b = self.sensorP.lastSensor
             noise_est = 10.0
             
-            if distance <= 1.5 or failure_mode:
+            if distance <= 1.5 or failure_trial > 0:
             # if(self.within_min_distnace and about_equal(f, 0.0, noise_est)):
                 #TODO maybe drive straight some more first ... evaluate with testing
                 #turn and move along covariance direction
                 #possibly add spiral or more robust failure case
                 
                 progress(" \n\n\n\n FAILED to reach waypoint in standard method \n\n\n\n")
-                if (not failure_mode):
-                    x = self.robSim.pf.particles.pos.real
-                    y = self.robSim.pf.particles.pos.imag
-                    c = np.cov(x, y)
-                    covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
-                    turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
-                    #execute turn
-                    self.app.turn.ang = turn_rads
-                    self.app.turn.start()
-                    yield self.forDuration(2)
-                    failure_mode = True
                 
-                
-
-                #drive back and forth some amount 
-                #TODO should probably be linked to particle positions
-                
-                #back and forth amount
-                if fb_time >= 0:
-                    bf_amount = 2.0
-                    self.app.move.dist = bf_amount * self.front_or_back
+                if failure_trial % left_back_movement_num == 0:
+                    # move forward & left and right
+                    self.robSim.liftWheels()
+                    yield self.forDuration(1)
+                    self.app.move.dist = 10 * self.front_or_back
                     self.app.move.start()
                     yield self.forDuration(2)
-                    fb_time += 1
-                    if fb_time ==5:
-                        fb_time = -1
+
+                    # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
+                    # y = [p_i.pos.imag for p_i in self.robSim.pf.particles]
+                    # c = np.cov(x, y)
+                    # covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
+                    # progress(covariance_angle)
+                    # turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
+                    #execute turn
+                    self.app.turn.ang = np.pi /2
+                    self.app.turn.start()
+                    yield self.forDuration(2)
+                # TODO: speed up back
+                bf_amount = 5.0
+                lr_time = failure_trial % left_back_movement_num
+                if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
+                    self.app.move.dist = bf_amount * self.front_or_back
+                    self.app.move.start()
+                    yield self.forDuration(1)
+                elif lr_time >= left_back_movement_num/ 4 and lr_time < 3*left_back_movement_num/ 4:
+                    self.app.move.dist = bf_amount * self.front_or_back * -1
+                    self.app.move.start()
+                    yield self.forDuration(1)
+                elif lr_time >= 3*left_back_movement_num/ 4 and lr_time < left_back_movement_num:
+                    self.app.move.dist = bf_amount * self.front_or_back
+                    self.app.move.start()
+                    yield self.forDuration(1)
                 else:
-                    fb_time -= 1
-                    if fb_time > -7:
-                        self.app.move.dist = bf_amount * self.front_or_back * -1
-                        self.app.move.start()
-                        yield self.forDuration(2)
+                    progress("WARNING - WRONG lr_time")
 
-                #while waypoint number is the same
-                    #drive back and forth more and more  
-
-
-
+                if lr_time == left_back_movement_num - 1:
+                    self.app.turn.ang = - np.pi /2
+                    self.app.turn.start()
+                    yield self.forDuration(2)
+                failure_trial += 1
             #default case for movement to waypoint
             else:
                 #min turn angle of 3 degrees - approx acc. of servo
