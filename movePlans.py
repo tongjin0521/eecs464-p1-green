@@ -136,6 +136,7 @@ class Auto(Plan):
         self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
         self.within_min_distnace = False
         failure_trial = 0
+        failure_front_or_back = None
         left_back_movement_num = 16
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
@@ -164,6 +165,7 @@ class Auto(Plan):
                 numWaypoints = len(self.sensorP.lastWaypoints[1])
                 self.within_min_distnace = False
                 failure_trial = 0
+                failure_front_or_back = None
             
             #position / distance
             difference = [next_waypoint.real - self.pos.real, (next_waypoint.imag - self.pos.imag)]
@@ -202,10 +204,11 @@ class Auto(Plan):
                 progress(" \n\n\n\n FAILED to reach waypoint in standard method \n\n\n\n")
                 
                 if failure_trial % left_back_movement_num == 0:
+                    failure_front_or_back = self.front_or_back
                     # move forward & left and right
                     self.robSim.liftWheels()
                     yield self.forDuration(1)
-                    self.app.move.dist = 10 * self.front_or_back
+                    self.app.move.dist = 10 * failure_front_or_back
                     self.app.move.start()
                     yield self.forDuration(2)
 
@@ -223,15 +226,15 @@ class Auto(Plan):
                 bf_amount = 5.0
                 lr_time = failure_trial % left_back_movement_num
                 if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
-                    self.app.move.dist = bf_amount * self.front_or_back
+                    self.app.move.dist = bf_amount * failure_front_or_back
                     self.app.move.start()
                     yield self.forDuration(1)
                 elif lr_time >= left_back_movement_num/ 4 and lr_time < 3*left_back_movement_num/ 4:
-                    self.app.move.dist = bf_amount * self.front_or_back * -1
+                    self.app.move.dist = bf_amount * failure_front_or_back * -1
                     self.app.move.start()
                     yield self.forDuration(1)
                 elif lr_time >= 3*left_back_movement_num/ 4 and lr_time < left_back_movement_num:
-                    self.app.move.dist = bf_amount * self.front_or_back
+                    self.app.move.dist = bf_amount * failure_front_or_back
                     self.app.move.start()
                     yield self.forDuration(1)
                 else:
