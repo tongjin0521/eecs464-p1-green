@@ -152,9 +152,9 @@ class RobotSimulatorApp( JoyApp ):
           pass
         self.autoP.waypoint_to = self.sensor.lastWaypoints[1][0]
         return progress(say + "RECORD")
-      if evt.key == K_q:
-        progress("--------EDR--------")
-        self.stop()
+      if evt.key == K_l:
+        #lost
+        self.autoP.stop()
     ### DO NOT MODIFY -----------------------------------------------
       else:# Use superclass to show any other events
         return JoyApp.onEvent(self,evt)
