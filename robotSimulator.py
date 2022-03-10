@@ -62,12 +62,11 @@ class RobotSimulatorApp( JoyApp ):
     progress("Using %s:%d as the waypoint host" % self.srvAddr)
     self.T0 = self.now
     ### MODIFY FROM HERE ------------------------------------------
-    self.robSim = RobotSim(fn=None, app=self)
+    self.robSim = RobotSim(fn=None, app=self, sensor=self.sensor)
     self.move = MoveDistClass(self, self.robSim)
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
-    self.autoP = Auto(self, self.robSim, self.sensor)
-    
+    self.autoP = Auto(self, self.robSim, self.sensor)    
 
   def showSensors( self ):
     """

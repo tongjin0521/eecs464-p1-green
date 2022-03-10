@@ -5,6 +5,8 @@ Created on Thu Sep  4 20:31:13 2014
 @author: shrevzen-home
 """
 import sys, os
+import matplotlib as plt
+import matplotlib.patches as patches
 from typing import final
 if 'pyckbot/hrb/' not in sys.path:
     sys.path.append(os.path.expanduser('~/pyckbot/hrb/'))
@@ -23,6 +25,18 @@ import math
 from particleFilter import *
 from joy.plans import Plan
 from joy import progress
+from waypointShared import lineSensorResponse, lineDist
+from movePlans import Auto
+
+#function returns vals previously scaled to range of [leftMin, leftMax] to vals scaled to range of [rightMin, rightMax]
+def translate(val, leftMin, leftMax, rightMin, rightMax):
+  #scale each range of vals
+  leftScale = lefMax - leftMin
+  rightScale = rightMax - rightMin
+  #scale the vals according to left range
+  valScale = float(val - leftMin) / float(leftScale)
+  #return new val scaled to right range
+  return rightMin + (rightScale * valScale) 
 
 class RobotSimInterface( object ):
     """
@@ -70,13 +84,12 @@ class RobotSimInterface( object ):
         return ""
 
 class RobotSim( RobotSimInterface ):
-    def __init__(self, app=None,  *args, **kw):
+    def __init__(self, app=None, sensor=None,  *args, **kw):
         RobotSimInterface.__init__(self, *args, **kw)
-        # initialize motors
         self.app = app
         self.servo = self.app.robot.at
-        self.liftAngle = 3000 #Must change to our specs
-        self.manualSpeed = 10 #this slow fr fr must change to our specs
+        self.liftAngle = 3500
+        self.manualSpeed = 10 
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
         self.servo.wheelMotorBack.set_mode('cont')
@@ -92,7 +105,8 @@ class RobotSim( RobotSimInterface ):
         self.servo.spinMotor.set_speed(7)
         # self.servo.spinMotor.set_pos(0)
         self.wheelsDown = False
-        self.pf = None
+        self.pf = Particle_Filter(10, 0+0j,1+0j , init_pos_noise=1, init_angle_noise=np.pi/180)
+        self.sensorP = sensor
 
     def turn(self, ang, absolute=False):
         degrees = -1.0 * ang * 180 / math.pi
@@ -111,13 +125,16 @@ class RobotSim( RobotSimInterface ):
             self.pf.turn_update(ang)
 
     def liftWheels(self):
+        #stop wheels
         self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
         self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
         if self.wheelsDown:
-            self.servo.liftServoFront.set_pos(0) #assuming 0=up
+            #if wheels are down, set them to pos 0 (up)
+            self.servo.liftServoFront.set_pos(0)
             self.servo.liftServoBack.set_pos(0)
             self.wheelsDown = False
         else:
+            #else they're already up, set them to liftAngle (down)
             self.servo.liftServoFront.set_pos(self.liftAngle)
             self.servo.liftServoBack.set_pos(self.liftAngle)
             self.wheelsDown = True
@@ -175,4 +192,38 @@ class RobotSim( RobotSimInterface ):
         self.motors[-1].set_pos(angle(tag_heading)*18000/pi)
 
     def refreshState(self):
+        #TODO: need to add particle filter plot updates
         pass
+    
+    def plot(self):
+        #store waypoints
+        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
+
+        coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])
+        #store particle weights
+        weights = [float(particle.weight) for particle in self.pf.particles]
+        max = np.max(weights)
+        min = np.min(weights)
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+
+        #TODO: only size-1 arrays can be converted to Python scalars
+        x = [int(x.real) for x in coordinates]
+        y = [int(y.imag) for y in coordinates]
+
+        wptx = [int(wpt.real) for wpt in waypoints]
+        wpty = [int(wpt.imag) for wpt in waypoints]
+
+        #plot the waypoints as rectangles
+        ax = plt.gca()
+        rect = patches.Rectangle((wptx, wpty), 10, 10, 0.0)
+        ax.add_patch(rect)
+
+        #plot the waypoints
+        plt.scatter(x,y,c=weights,cmap='green')
+        #graph axes
+        plt.xlim([-100, 100])
+        plt.ylim([-100, 100])
+        #show plot
+        plt.show()
