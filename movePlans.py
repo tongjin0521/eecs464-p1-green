@@ -78,6 +78,16 @@ class TurnClass(Plan):
         self.robSim.turn(self.ang)
         yield self.forDuration(self.waiting_time)
 
+class DanceClass(Plan):
+    def __init__(self, app, robSim):
+        Plan.__init__(self, app)
+        self.robSim = robSim
+        self.waiting_time = 1
+
+    def behavior(self):
+        self.robSim.dance()
+        yield self.forDuration(self.waiting_time)
+
 class Auto(Plan):
     """
     Plan takes control of the robot and navigates the waypoints.
@@ -154,6 +164,9 @@ class Auto(Plan):
             self.pos, self.ang = self.robSim.pf.estimated_pose()
 
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
+                self.app.dance.start()
+                yield self.forDuration(2)
+
                 # we hit a waypoint and are heading for a new one
                 self.app.move.dist = 8 * self.front_or_back
                 self.app.move.start()

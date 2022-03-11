@@ -89,6 +89,7 @@ class RobotSim( RobotSimInterface ):
         self.app = app
         self.servo = self.app.robot.at
         self.liftAngle = 3500
+        self.danceAngle = -4500
         self.manualSpeed = 10 
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
@@ -178,6 +179,14 @@ class RobotSim( RobotSimInterface ):
         self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:
             self.pf.move_update(dist)
+
+    def dance(self):
+        self.servo.wheelMotorFront.set_pos(self.servo.wheelMotorFront.get_pos())
+        self.servo.wheelMotorBack.set_pos(self.servo.wheelMotorBack.get_pos())
+        if self.wheelsDown:  
+            self.wheelsDown = False
+        self.servo.liftServoFront.set_pos(self.danceAngle)
+        self.servo.liftServoBack.set_pos(self.danceAngle)
 
     def turnTagTo(self, tag_heading):
         # Turns the tag mounted on the robot to a given heading

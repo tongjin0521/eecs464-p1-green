@@ -66,7 +66,8 @@ class RobotSimulatorApp( JoyApp ):
     self.move = MoveDistClass(self, self.robSim)
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
-    self.autoP = Auto(self, self.robSim, self.sensor)    
+    self.autoP = Auto(self, self.robSim, self.sensor) 
+    self.dance = DanceClass(self,self.robSim)   
 
   def showSensors( self ):
     """

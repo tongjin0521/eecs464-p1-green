@@ -162,6 +162,9 @@ class RobotSim( RobotSimInterface ):
         self.baseAng *=  np.exp(1j*noise)
         #self.ang *= self.baseAng
         self.wheelsDown = not self.wheelsDown
+    
+    def dance(self):
+        pass
 
     def plot_rect(self,coordinates,plt = "~plot",color = 'r',ls='-',both= False):
         # Tranfsorm to camera coordiantes
