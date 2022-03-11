@@ -93,8 +93,8 @@ class RobotSim( RobotSimInterface ):
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
         self.servo.wheelMotorBack.set_mode('cont')
-        self.servo.wheelMotorFront.set_speed(20)
-        self.servo.wheelMotorBack.set_speed(20)
+        self.servo.wheelMotorFront.set_speed(30)
+        self.servo.wheelMotorBack.set_speed(30)
         self.servo.liftServoFront.set_mode(0)
         self.servo.liftServoBack.set_mode(0)
         self.servo.liftServoFront.set_speed(6)
@@ -111,7 +111,7 @@ class RobotSim( RobotSimInterface ):
     def turn(self, ang, absolute=False):
         degrees = -1.0 * ang * 180 / math.pi
         if self.wheelsDown:
-            self.liftWheels()
+            self.app.liftWheels.start()
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
             pass
         currentPos = self.servo.spinMotor.get_pos()
@@ -141,7 +141,7 @@ class RobotSim( RobotSimInterface ):
 
     def move(self, dist):
         if not self.wheelsDown:
-            self.liftWheels()
+            self.app.liftWheels.start()
         #numRotations is postive for forward and negative for backward
         wheel_radius = 4.8
         numRotations = dist / (wheel_radius * 2 *np.pi)

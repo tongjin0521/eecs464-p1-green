@@ -61,8 +61,10 @@ class LiftWheelsClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
+        self.waiting_time = 1
     def behavior(self):
-        yield self.robSim.liftWheels()
+        self.robSim.liftWheels()
+        yield self.forDuration(self.waiting_time)
 
 class TurnClass(Plan):
     def __init__(self, app, robSim):
