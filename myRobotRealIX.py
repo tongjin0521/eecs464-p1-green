@@ -114,7 +114,8 @@ class RobotSim( RobotSimInterface ):
         if self.wheelsDown:
             self.app.liftWheels.start()
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
-            pass
+            progress("--")
+            yield 0.1
         currentPos = self.servo.spinMotor.get_pos()
         # print(currentPos)
         movePos = currentPos-degrees*100

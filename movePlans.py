@@ -75,7 +75,7 @@ class TurnClass(Plan):
         self.waiting_time = 1
 
     def behavior(self):
-        self.robSim.turn(self.ang)
+        yield self.robSim.turn(self.ang)
         yield self.forDuration(self.waiting_time)
 
 class DanceClass(Plan):
