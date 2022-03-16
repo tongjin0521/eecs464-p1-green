@@ -9,6 +9,8 @@ from numpy import linalg
 import numpy as np
 import math
 
+from pyrsistent import T
+
 try:
     from joy.plans import Plan
 except ImportError:
@@ -118,6 +120,14 @@ class Auto(Plan):
         else:
             return front_near_angle,1
 
+    def near_the_bound(self):
+        bound1,bound2 = 100, 100
+        limitation = 2
+        if self.pos.real < limitation or bound1 - self.pos.real < limitation:
+            return True
+        if self.pos.imag < limitation or bound2 - self.pos.imag < limitation:
+            return True
+        return False
 
     def behavior(self):
         #---------------------------------------------------------
@@ -238,16 +248,26 @@ class Auto(Plan):
                     self.app.turn.start()
                     yield self.forDuration(2)
                 # TODO: speed up back & keep record of front_or_back since it might be changing
+
+                near_the_bound = self.near_the_bound()
+
                 bf_amount = 5.0
                 lr_time = failure_trial % left_back_movement_num
                 if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
-                    self.app.move.dist = bf_amount * failure_front_or_back
-                    self.app.move.start()
-                    yield self.forDuration(1)
+                    if not near_the_bound:
+                        self.app.move.dist = bf_amount * failure_front_or_back
+                        self.app.move.start()
+                        yield self.forDuration(1)
+                    else:
+                        failure_trial +=  2*(left_back_movement_num/ 4 - lr_time)
                 elif lr_time >= left_back_movement_num/ 4 and lr_time < 3*left_back_movement_num/ 4:
-                    self.app.move.dist = bf_amount * failure_front_or_back * -1
-                    self.app.move.start()
-                    yield self.forDuration(1)
+                    if not near_the_bound:
+                        self.app.move.dist = bf_amount * failure_front_or_back * -1
+                        self.app.move.start()
+                        yield self.forDuration(1)
+                    else:
+                        if lr_time > left_back_movement_num /2:
+                            failure_trial +=  2*(3 * left_back_movement_num/ 4 - lr_time)
                 elif lr_time >= 3*left_back_movement_num/ 4 and lr_time < left_back_movement_num:
                     self.app.move.dist = bf_amount * failure_front_or_back
                     self.app.move.start()
