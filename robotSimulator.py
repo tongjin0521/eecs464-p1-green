@@ -139,12 +139,12 @@ class RobotSimulatorApp( JoyApp ):
         return progress(say + "Lifting Wheels")
       if evt.key == K_LEFT:
         self.turn.absolute = False
-        self.turn.ang = -da
+        self.turn.ang = da
         self.turn.start()
         return progress(say + "Turn left")
       if evt.key == K_RIGHT:
         self.turn.absolute = False
-        self.turn.ang = da
+        self.turn.ang = -da
         self.turn.start()
         return progress(say + "Turn right")
       if evt.key == K_r:
