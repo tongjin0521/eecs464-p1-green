@@ -20,7 +20,7 @@ except ImportError:
 
 from joy import progress
 
-from particleFilter import Particle_Filter, about_equal
+from particleFilter import Particle_Filter, about_equal, Particle
 
 from waypointShared import lineSensorResponse, lineDist
 
@@ -90,6 +90,36 @@ class DanceClass(Plan):
         self.robSim.dance()
         yield self.forDuration(self.waiting_time)
 
+class CalibrateClass(Plan):
+    def __init__(self, app, sensor):
+        Plan.__init__(self, app)
+        self.waiting_time = 1
+        self.sensorP = sensor
+    
+    def behavior(self):
+        count = 0
+        f_sensor_values = []
+        b_sensor_values = []
+        
+        #reads once every half second for 100 times
+        # a bit of a sloppy implementation
+        while (count < 100):
+            progress("measured: " + str(count))
+            count += 1
+            ts,f,b = self.sensorP.lastSensor
+            f_sensor_values.append(f)
+            b_sensor_values.append(b)
+            yield self.forDuration(0.5)
+        progress("f_mean: " + str(np.mean(f_sensor_values)))
+        progress("f_min: " + str(np.min(f_sensor_values)))
+        progress("f_max: " + str(np.max(f_sensor_values)))
+        progress("f_std: " + str(np.std(f_sensor_values)))
+        progress("")
+        progress("b_mean: " + str(np.mean(b_sensor_values)))
+        progress("b_min: " + str(np.min(b_sensor_values)))
+        progress("b_max: " + str(np.max(b_sensor_values)))
+        progress("b_std: " + str(np.std(b_sensor_values)))
+
 class Auto(Plan):
     """
     Plan takes control of the robot and navigates the waypoints.
@@ -102,6 +132,8 @@ class Auto(Plan):
         self.front_or_back = True
         self.waypoint_from = None
         self.waypoint_to = None
+
+        self.reload_from_failure = False
 
     def nearest_turn(self,curr_ang,target_ang):
         front_near_angle = target_ang - curr_ang
@@ -155,11 +187,26 @@ class Auto(Plan):
         self.waypoint_from = self.waypoint_to
         self.waypoint_to = list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
         # progress(self.waypoint_from)
-        self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
         self.within_min_distnace = False
-        failure_trial = 0
         failure_front_or_back = None
         left_back_movement_num = 16
+
+        if(self.reload_from_failure):
+            f = open("state.txt", "r")
+            failure_trial = int(f.readline())
+
+            lines = f.readlines()
+            self.robSim.pf = []
+            self.robSim.pf.num_particles = len(lines)
+            for line in lines:
+                values = line.split(",")
+                particle = Particle(pos = values[0], angle = values[1], weight = values[2])
+                self.robSim.pf.append(particle)
+
+        else:
+            failure_trial = 0
+            self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
+
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
             # TODO: 
@@ -319,6 +366,10 @@ class Auto(Plan):
 
                 #ts,f,b = self.sensorP.lastSensor
                 self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
+                f = open("state.txt", "w")
+                f.write(str(failure_trial))
+                f.close()
+                self.robSim.pf.save_state()
 
                 # for particle in self.robSim.pf.particles:
                 #     progress(str(particle.weight))

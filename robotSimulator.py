@@ -67,7 +67,8 @@ class RobotSimulatorApp( JoyApp ):
     self.liftWheels = LiftWheelsClass(self, self.robSim)
     self.turn = TurnClass(self, self.robSim)
     self.autoP = Auto(self, self.robSim, self.sensor) 
-    self.dance = DanceClass(self,self.robSim)   
+    self.dance = DanceClass(self,self.robSim)
+    self.calibrate = CalibrateClass(self, self.sensor)
 
   def showSensors( self ):
     """
@@ -100,6 +101,8 @@ class RobotSimulatorApp( JoyApp ):
       self.autoP.stop()
       self.move.stop()
       self.turn.stop()
+      self.dance.stop()
+      self.calibrate.stop()
     except:
       pass
 
@@ -156,6 +159,13 @@ class RobotSimulatorApp( JoyApp ):
       if evt.key == K_l:
         #lost
         self.autoP.stop()
+      if evt.key == K_f:
+        self.autoP.reload_from_failure = True
+        return progress(say + "reload from failure")
+      
+      if evt.key == K_c:
+        self.calibrate.start()
+        return progress(say + "calibration mode")
     ### DO NOT MODIFY -----------------------------------------------
       else:# Use superclass to show any other events
         return JoyApp.onEvent(self,evt)

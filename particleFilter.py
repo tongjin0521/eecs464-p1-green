@@ -216,3 +216,9 @@ class Particle_Filter:
             needed_total_weight += particle_i.weight
         return estimated_pos/needed_total_weight, estimated_ang/needed_total_weight
     
+    def save_state(self):
+        f = open("state.txt", "a")
+        f.write("particle filter state:")
+        for particle in self.particles:
+            f.write(str(particle.pos) + "," + str(particle.angle) + "," + str(particle.weight))
+        f.close()
