@@ -74,7 +74,7 @@ class RobotSimulatorApp( JoyApp ):
     Display sensor readings
     """
     # This code should help you understand how you access sensor information
-    # return
+    return
     ts,f,b = self.sensor.lastSensor
     if ts:
       progress( "Sensor: %4d f %d b %d" % (ts-self.T0,f,b)  )

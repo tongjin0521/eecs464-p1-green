@@ -175,12 +175,13 @@ class Auto(Plan):
 
             if (numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 self.app.dance.start()
-                yield self.forDuration(2)
+                yield self.forDuration(4)
 
                 # we hit a waypoint and are heading for a new one
-                self.app.move.dist = 8 * self.front_or_back
-                self.app.move.start()
-                yield self.forDuration(2)
+
+                # self.app.move.dist = 8 * self.front_or_back
+                # self.app.move.start()
+                # yield self.forDuration(2)
 
                 self.waypoint_from = self.waypoint_to
                 self.waypoint_to =  list_to_complex(convert_waypoint(self.sensorP.lastWaypoints[1][1]))
@@ -226,14 +227,14 @@ class Auto(Plan):
                 #turn and move along covariance direction
                 #possibly add spiral or more robust failure case
                 
-                progress(" \n\n\n\n FAILED to reach waypoint in standard method \n\n\n\n")
+                progress(" \n\n FAILED to reach waypoint in standard method \n\n")
                 
                 if failure_trial % left_back_movement_num == 0:
                     if failure_trial == 0:
                         failure_front_or_back = self.front_or_back
                     # move forward & left and right
-                    self.robSim.liftWheels()
-                    yield self.forDuration(1)
+                    # self.robSim.liftWheels()
+                    # yield self.forDuration(1)
                     self.app.move.dist = 10 * failure_front_or_back
                     self.app.move.start()
                     yield self.forDuration(2)
@@ -252,29 +253,29 @@ class Auto(Plan):
 
                 # near_the_bound = self.near_the_bound()
                 near_the_bound = False
-                progress("NEAR THE BOUND: "+ str(near_the_bound))
-                progress("Failure_trial: "+ str(failure_trial))
+                # progress("NEAR THE BOUND: "+ str(near_the_bound))
+                # progress("Failure_trial: "+ str(failure_trial))
                 bf_amount = 5.0
                 lr_time = failure_trial % left_back_movement_num
                 if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
                     if not near_the_bound:
                         self.app.move.dist = bf_amount * failure_front_or_back
                         self.app.move.start()
-                        yield self.forDuration(1.5)
+                        yield self.forDuration(2)
                     else:
                         failure_trial +=  2*(left_back_movement_num/ 4 - lr_time)
                 elif lr_time >= left_back_movement_num/ 4 and lr_time < 3*left_back_movement_num/ 4:
                     if not near_the_bound:
                         self.app.move.dist = bf_amount * failure_front_or_back * -1
                         self.app.move.start()
-                        yield self.forDuration(1.5)
+                        yield self.forDuration(2)
                     else:
                         if lr_time > left_back_movement_num /2:
                             failure_trial +=  2*(3 * left_back_movement_num/ 4 - lr_time)
                 elif lr_time >= 3*left_back_movement_num/ 4 and lr_time < left_back_movement_num:
                     self.app.move.dist = bf_amount * failure_front_or_back
                     self.app.move.start()
-                    yield self.forDuration(1.5)
+                    yield self.forDuration(2)
                 else:
                     progress("WARNING - WRONG lr_time")
 
@@ -314,18 +315,34 @@ class Auto(Plan):
 
                 #only move by at most step_size
                 #TODO tune this value
-                step_size = 10
+                step_size = 6
                 if(distance < step_size):
                     self.app.move.dist = distance * self.front_or_back
                 else:
                     self.app.move.dist = step_size * self.front_or_back
-
-                #ts,f,b = self.sensorP.lastSensor
-                self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
+                
+                
 
                 # for particle in self.robSim.pf.particles:
                 #     progress(str(particle.weight))
 
                 self.app.move.start()
-                yield self.forDuration(2)
+                yield self.forDuration(1)
+
+
+                last_ts,f,b = self.sensorP.lastSensor
+                sample_collected = [[f, b]]
+                num_samples_wanted = 5
+                num_sensor_trials = 0
+                while (len(sample_collected) < num_samples_wanted and num_sensor_trials < 30):
+                    ts,f,b = self.sensorP.lastSensor
+                    progress("collecting sensor vals: "+ str(len(sample_collected)))
+                    if (ts != last_ts):
+                        sample_collected.append([f,b])
+                        last_ts = ts
+                    else:
+                        yield self.forDuration(0.2)
+                    num_sensor_trials +=1
+                sample_collected = np.mean(np.array(sample_collected),axis = 0)
+                self.robSim.pf.update(sample_collected[0], sample_collected[1], next_waypoint,curr_waypoint)
         yield

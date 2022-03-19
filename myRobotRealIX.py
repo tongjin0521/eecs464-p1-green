@@ -160,9 +160,9 @@ class RobotSim( RobotSimInterface ):
         #Original position
         # posFrontOrig = posFront
         # posBackOrig = posBack
-        print("---init---")
-        print(posFront)
-        print(posBack)
+        # print("---init---")
+        # print(posFront)
+        # print(posBack)
         # numSteps = abs(math.floor(numRotations * 360 / stepSize ))
         # print(numSteps)
         # for i in range(int(numSteps)):
@@ -177,9 +177,9 @@ class RobotSim( RobotSimInterface ):
         #     #yield self.app.move.forDuration(1)
         finalPosFront = int(posFront + numRotations*36000)
         finalPosBack  = int(posBack  + numRotations*36000)
-        print("---final---")
-        print(finalPosFront)
-        print(finalPosBack)
+        # print("---final---")
+        # print(finalPosFront)
+        # print(finalPosBack)
         self.servo.wheelMotorFront.set_pos(finalPosFront)
         self.servo.wheelMotorBack.set_pos(finalPosBack)
         if self.pf:

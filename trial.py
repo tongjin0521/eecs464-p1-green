@@ -1,8 +1,6 @@
 import numpy as np
 
-i = 0
-def nearest_turn():
-    i += 1
+a = [[0,1],[2,3],[4,5]]
 
 
-print(nearest_turn())
+print(np.mean(np.array(a),axis=0))
