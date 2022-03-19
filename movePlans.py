@@ -1,5 +1,6 @@
 from cmath import phase
 from pickle import TRUE
+from pickletools import float8
 from turtle import back
 from numpy import (
     asarray, c_, dot, isnan, append, ones, reshape, mean,
@@ -8,8 +9,7 @@ from numpy import (
 from numpy import linalg
 import numpy as np
 import math
-
-from pyrsistent import T
+#from pyrsistent import T
 
 try:
     from joy.plans import Plan
@@ -26,7 +26,7 @@ from waypointShared import lineSensorResponse, lineDist
 
 # VERY IMPORTANT ########################################################################################################
 #determines if we are running real or simulated robot
-real_robot = True
+real_robot = False
 ############################################################################################################
 
 
@@ -101,24 +101,25 @@ class CalibrateClass(Plan):
         f_sensor_values = []
         b_sensor_values = []
         
-        #reads once every half second for 100 times
+        #reads once every second for 30 times
         # a bit of a sloppy implementation
-        while (count < 100):
+        while (count < 30):
             progress("measured: " + str(count))
             count += 1
             ts,f,b = self.sensorP.lastSensor
             f_sensor_values.append(f)
             b_sensor_values.append(b)
-            yield self.forDuration(0.5)
-        progress("f_mean: " + str(np.mean(f_sensor_values)))
-        progress("f_min: " + str(np.min(f_sensor_values)))
-        progress("f_max: " + str(np.max(f_sensor_values)))
-        progress("f_std: " + str(np.std(f_sensor_values)))
-        progress("")
-        progress("b_mean: " + str(np.mean(b_sensor_values)))
-        progress("b_min: " + str(np.min(b_sensor_values)))
-        progress("b_max: " + str(np.max(b_sensor_values)))
-        progress("b_std: " + str(np.std(b_sensor_values)))
+            yield self.forDuration(1)
+        f = open("sensor_stats.txt", "w")
+        f.write("f_mean: " + str(np.mean(f_sensor_values)) + "\n")
+        f.write("f_min: " + str(np.min(f_sensor_values))+ "\n")
+        f.write("f_max: " + str(np.max(f_sensor_values))+ "\n")
+        f.write("f_std: " + str(np.std(f_sensor_values))+ "\n")
+        f.write("b_mean: " + str(np.mean(b_sensor_values))+ "\n")
+        f.write("b_min: " + str(np.min(b_sensor_values))+ "\n")
+        f.write("b_max: " + str(np.max(b_sensor_values))+ "\n")
+        f.write("b_std: " + str(np.std(b_sensor_values))+ "\n")
+        f.close()
 
 class Auto(Plan):
     """
@@ -196,12 +197,20 @@ class Auto(Plan):
             failure_trial = int(f.readline())
 
             lines = f.readlines()
-            self.robSim.pf = []
+            self.robSim.pf.particles = []
             self.robSim.pf.num_particles = len(lines)
             for line in lines:
                 values = line.split(",")
-                particle = Particle(pos = values[0], angle = values[1], weight = values[2])
-                self.robSim.pf.append(particle)
+                progress("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                progress(values)
+                val1 = complex(values[0])
+                val2 = complex(values[1])
+                val3 = float(values[2][:-2])
+                progress(str(val1))
+                progress(str(val2))
+                progress(str(val3))
+                particle = Particle(pos = val1, angle =val2, weight = val3)
+                self.robSim.pf.particles.append(particle)
 
         else:
             failure_trial = 0
@@ -367,7 +376,7 @@ class Auto(Plan):
                 #ts,f,b = self.sensorP.lastSensor
                 self.robSim.pf.update(f, b, next_waypoint,curr_waypoint)
                 f = open("state.txt", "w")
-                f.write(str(failure_trial))
+                f.write(str(failure_trial)  + "\n")
                 f.close()
                 self.robSim.pf.save_state()
 

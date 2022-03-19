@@ -218,7 +218,6 @@ class Particle_Filter:
     
     def save_state(self):
         f = open("state.txt", "a")
-        f.write("particle filter state:")
         for particle in self.particles:
-            f.write(str(particle.pos) + "," + str(particle.angle) + "," + str(particle.weight))
+            f.write(str(particle.pos) + "," + str(particle.angle) + "," + str(particle.weight)  + "\n")
         f.close()

@@ -31,7 +31,7 @@ from movePlans import Auto
 #function returns vals previously scaled to range of [leftMin, leftMax] to vals scaled to range of [rightMin, rightMax]
 def translate(val, leftMin, leftMax, rightMin, rightMax):
   #scale each range of vals
-  leftScale = lefMax - leftMin
+  leftScale = leftMax - leftMin
   rightScale = rightMax - rightMin
   #scale the vals according to left range
   valScale = float(val - leftMin) / float(leftScale)
