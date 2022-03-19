@@ -128,6 +128,7 @@ class Particle_Filter:
         #print("b: " + str(measured_b))
         noise_est = 2.0
         ##discard distance measurements if they are about 0
+        '''
         if(about_equal(measured_f, 0.0, noise_est) and about_equal(measured_b, 0.0, noise_est)):
             return
         elif(about_equal(measured_f, 0.0, noise_est)):
@@ -135,7 +136,8 @@ class Particle_Filter:
         elif(about_equal(measured_b, 0.0, noise_est)):
             real_dist = measured_f
         else:
-            real_dist = (measured_f + measured_b)/2
+        '''
+        real_dist = (measured_f + measured_b)/2
         
         max_sense = 0
         #for particle in self.particles:
