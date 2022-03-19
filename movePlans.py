@@ -278,23 +278,14 @@ class Auto(Plan):
         sample_collected = np.mean(np.array(sample_collected),axis = 0)
         self.robSim.pf.update(sample_collected[0], sample_collected[1], self.next_waypoint, self.curr_waypoint)
 
-
+    #---------------------------------------------------------
+    # NOTE: ONLY START THE AUTONOMOUS MODE WHEN WE REACH THE WAYPOINT AND TURN TO 1 + 0j
+    #---------------------------------------------------------
     def behavior(self):
-        #---------------------------------------------------------
-        # NOTE: ONLY START THE AUTONOMOUS MODE WHEN WE REACH THE WAYPOINT AND TURN TO 1 + 0j
-        #---------------------------------------------------------
-        
         yield self.init_auto()
         
         ##Loop while there are still waypoints to reach
         while len(self.sensorP.lastWaypoints[1]) > 1:
-            # TODO: 
-            #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
-            #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
-            #   3. What if we miss a waypoint?
-            #   4. blocked - how to turn to avoid blocking?
-            #   5. if we are really close to the target, we tend to have great angle diff, but in that way, we actually dont need to change our angle
-            #   6. following point 5, we may want to turn to the desired angle when we get close to the target and turn it once for all
 
             self.curr_waypoint, self.next_waypoint = self.waypoint_from, self.waypoint_to
             self.pos, self.ang = self.robSim.pf.estimated_pose()
@@ -334,3 +325,10 @@ class Auto(Plan):
 
                 yield self.update_pf()
         yield
+    # TODO: 
+    #   1. For every iteration, we don't want to turn and move; maybe all we need is to move forward
+    #   2. Following point 1, we should probably add some conditions, like we only turn iff we reach a waypoint or we drift too much
+    #   3. What if we miss a waypoint?
+    #   4. blocked - how to turn to avoid blocking?
+    #   5. if we are really close to the target, we tend to have great angle diff, but in that way, we actually dont need to change our angle
+    #   6. following point 5, we may want to turn to the desired angle when we get close to the target and turn it once for all
