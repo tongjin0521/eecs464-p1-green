@@ -106,7 +106,7 @@ class Auto(Plan):
         self.failure_trial = 0
         self.within_min_distnace = False
         self.failure_front_or_back = None
-        self.left_back_movement_num = 16 + 2  # 2 additional for move and turn
+        self.left_back_movement_num = 16 + 3  # 2 additional for move, turn and turn back
         self.turn_rads = None
         self.curr_waypoint = None
         self.next_waypoint = None
@@ -210,13 +210,14 @@ class Auto(Plan):
             if self.failure_trial == 0:
                 self.failure_front_or_back = self.front_or_back
             # move forward & left and right
-            self.robSim.liftWheels()
-            yield self.forDuration(2)
-
             progress("trying to move in dir: "+ self.failure_front_or_back)
             self.app.move.dist = 10 * self.failure_front_or_back
             self.app.move.start()
-            yield self.forDuration(6)
+            yield self.forDuration(2)
+        elif self.failure_trial % self.left_back_movement_num == 1:
+            self.app.turn.ang = np.pi /2
+            self.app.turn.start()
+            yield self.forDuration(2)
 
             # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
             # y = [p_i.pos.imag for p_i in self.robSim.pf.particles]
@@ -225,48 +226,44 @@ class Auto(Plan):
             # progress(covariance_angle)
             # self.turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
             #execute turn
-            self.app.turn.ang = np.pi /2
+        elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num - 1:
+            self.app.turn.ang = - np.pi /2
             self.app.turn.start()
             yield self.forDuration(2)
-        # TODO: speed up back & keep record of front_or_back since it might be changing
+        else:   
+            # TODO: speed up back & keep record of front_or_back since it might be changing
 
-        # near_the_bound = self.near_the_bound()
-        near_the_bound = False
-        # progress("NEAR THE BOUND: "+ str(near_the_bound))
-        
-        bf_amount = 5.0
-        lr_time = self.failure_trial % self.left_back_movement_num
-        progress("Failure_trial: "+ str(self.failure_trial))
-        progress("lr_time: " + str(lr_time))
-        if lr_time >= 0 and lr_time < self.left_back_movement_num/ 4:
-            progress("left")
-            if not near_the_bound:
+            # near_the_bound = self.near_the_bound()
+            near_the_bound = False
+          
+            bf_amount = 5.0
+            lr_time = (self.failure_trial - 3) % self.left_back_movement_num
+            progress("Failure_trial: "+ str(self.failure_trial))
+            progress("lr_time: " + str(lr_time))
+            if lr_time >= 0 and lr_time < self.left_back_movement_num/ 4:
+                progress("left")
+                if not near_the_bound:
+                    self.app.move.dist = bf_amount * self.failure_front_or_back
+                    self.app.move.start()
+                    yield self.forDuration(2)
+                else:
+                    self.failure_trial +=  2*(self.left_back_movement_num/ 4 - lr_time)
+            elif lr_time >= self.left_back_movement_num/ 4 and lr_time < 3*self.left_back_movement_num/ 4:
+                progress("right")
+                if not near_the_bound:
+                    self.app.move.dist = bf_amount * self.failure_front_or_back * -1
+                    self.app.move.start()
+                    yield self.forDuration(2)
+                else:
+                    if lr_time > self.left_back_movement_num /2:
+                        self.failure_trial +=  2*(3 * self.left_back_movement_num/ 4 - lr_time)
+            elif lr_time >= 3*self.left_back_movement_num/ 4 and lr_time < self.left_back_movement_num:
+                progress("back left")
                 self.app.move.dist = bf_amount * self.failure_front_or_back
                 self.app.move.start()
                 yield self.forDuration(2)
             else:
-                self.failure_trial +=  2*(self.left_back_movement_num/ 4 - lr_time)
-        elif lr_time >= self.left_back_movement_num/ 4 and lr_time < 3*self.left_back_movement_num/ 4:
-            progress("right")
-            if not near_the_bound:
-                self.app.move.dist = bf_amount * self.failure_front_or_back * -1
-                self.app.move.start()
-                yield self.forDuration(2)
-            else:
-                if lr_time > self.left_back_movement_num /2:
-                    self.failure_trial +=  2*(3 * self.left_back_movement_num/ 4 - lr_time)
-        elif lr_time >= 3*self.left_back_movement_num/ 4 and lr_time < self.left_back_movement_num:
-            progress("back left")
-            self.app.move.dist = bf_amount * self.failure_front_or_back
-            self.app.move.start()
-            yield self.forDuration(2)
-        else:
-            progress("WARNING - WRONG lr_time")
-
-        if lr_time == self.left_back_movement_num - 1:
-            self.app.turn.ang = - np.pi /2
-            self.app.turn.start()
-            yield self.forDuration(2)
+                progress("WARNING - WRONG lr_time")
         self.failure_trial += 1
     
     def update_pf(self):
