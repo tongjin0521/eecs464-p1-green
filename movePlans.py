@@ -162,26 +162,26 @@ class Auto(Plan):
         # progress(self.waypoint_from)
         self.robSim.pf = Particle_Filter(200 , self.waypoint_from, 0 + 1j, init_pos_noise=1,init_angle_noise= np.pi/180 * 1)
     
-    def calculate_movement(self, print=True):
-        #position / distance
+    def calculate_dist(self, print = False):
         difference = [self.next_waypoint.real - self.pos.real, (self.next_waypoint.imag - self.pos.imag)]
         self.distance = linalg.norm(difference)
-        #angle
+        if(print):
+            progress("------------------------")
+            progress("pos: " + str(self.pos))
+            progress("target_pos: " + str(self.next_waypoint))
+            progress("diff: " + str(difference))
+            progress("dist: " + str(self.distance))
+
+    def calculate_angle(self, print = False):
         angle = np.angle(self.ang.real + self.ang.imag*1j) # radian
         target_angle = np.angle(self.next_waypoint.real - self.pos.real + (self.next_waypoint.imag - self.pos.imag) * 1j) # radian
-
         self.turn_rads,self.front_or_back = self.nearest_turn(angle,target_angle)
-        
-        progress("------------------------")
-        progress("pos: " + str(self.pos))
-        progress("target_pos: " + str(self.next_waypoint))
-        progress("diff: " + str(difference))
-        progress("dist: " + str(self.distance))
-        progress("angle: " + str(angle / np.pi * 180))
-        progress("target_ang: " + str(target_angle / np.pi *180))
-        progress("turn: " + str(self.turn_rads /np.pi * 180))
-        progress("moving torwards: " + str(self.front_or_back))
-        progress("------------------------")
+        if(print):
+            progress("angle: " + str(angle / np.pi * 180))
+            progress("target_ang: " + str(target_angle / np.pi *180))
+            progress("turn: " + str(self.turn_rads /np.pi * 180))
+            progress("moving torwards: " + str(self.front_or_back))
+            progress("------------------------")
 
     def waypoint_reached(self):
         self.app.dance.start()
@@ -302,13 +302,16 @@ class Auto(Plan):
                 yield self.waypoint_reached()
             
             yield self.update_pf()
-            yield self.calculate_movement(print=True)
-            
+            #yield self.calculate_movement(print=True)
+            yield self.calculate_dist(print = True)
+
             if self.distance <= 1.5 or self.failure_trial > 0:
                 yield self.failed_to_reach_waypoint()
             
             #default case for movement to waypoint
             else:
+                yield self.calculate_angle(print = True)
+
                 if self.distance < self.min_distance_threshold:
                     self.within_min_distnace = True
                     
