@@ -301,9 +301,6 @@ class Auto(Plan):
             
             #default case for movement to waypoint
             else:
-                #min turn angle of 3 degrees - approx acc. of servo
-                # TODO tune this value more
-
                 if self.distance < self.min_distance_threshold:
                     self.within_min_distnace = True
                     
