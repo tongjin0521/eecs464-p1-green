@@ -308,76 +308,6 @@ class Auto(Plan):
             if self.distance <= 1.5 or self.failure_trial > 0:
                 yield self.failed_to_reach_waypoint()
             
-<<<<<<< HEAD
-            #we think we are close to waypoint and then see that we pass the end of the line
-            ts,f,b = self.sensorP.lastSensor
-            noise_est = 10.0
-            
-            if distance <= 1.5 or failure_trial > 0:
-            # if(self.within_min_distnace and about_equal(f, 0.0, noise_est)):
-                #TODO maybe drive straight some more first ... evaluate with testing
-                #turn and move along covariance direction
-                #possibly add spiral or more robust failure case
-                
-                progress(" \n\n FAILED to reach waypoint in standard method \n\n")
-                
-                if failure_trial % left_back_movement_num == 0:
-                    if failure_trial == 0:
-                        failure_front_or_back = self.front_or_back
-                    # move forward & left and right
-                    # self.robSim.liftWheels()
-                    # yield self.forDuration(1)
-                    self.app.move.dist = 10 * failure_front_or_back
-                    self.app.move.start()
-                    yield self.forDuration(2)
-
-                    # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
-                    # y = [p_i.pos.imag for p_i in self.robSim.pf.particles]
-                    # c = np.cov(x, y)
-                    # covariance_angle = np.angle(1 + 1j*(c[0][0]-c[0][1]))
-                    # progress(covariance_angle)
-                    # turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
-                    #execute turn
-                    self.app.turn.ang = np.pi /2
-                    self.app.turn.start()
-                    yield self.forDuration(3)
-                # TODO: speed up back & keep record of front_or_back since it might be changing
-
-                # near_the_bound = self.near_the_bound()
-                near_the_bound = False
-                # progress("NEAR THE BOUND: "+ str(near_the_bound))
-                # progress("Failure_trial: "+ str(failure_trial))
-                bf_amount = 5.0
-                lr_time = failure_trial % left_back_movement_num
-                if lr_time >= 0 and lr_time < left_back_movement_num/ 4:
-                    if not near_the_bound:
-                        self.app.move.dist = bf_amount * failure_front_or_back
-                        self.app.move.start()
-                        yield self.forDuration(2)
-                    else:
-                        failure_trial +=  2*(left_back_movement_num/ 4 - lr_time)
-                elif lr_time >= left_back_movement_num/ 4 and lr_time < 3*left_back_movement_num/ 4:
-                    if not near_the_bound:
-                        self.app.move.dist = bf_amount * failure_front_or_back * -1
-                        self.app.move.start()
-                        yield self.forDuration(2)
-                    else:
-                        if lr_time > left_back_movement_num /2:
-                            failure_trial +=  2*(3 * left_back_movement_num/ 4 - lr_time)
-                elif lr_time >= 3*left_back_movement_num/ 4 and lr_time < left_back_movement_num:
-                    self.app.move.dist = bf_amount * failure_front_or_back
-                    self.app.move.start()
-                    yield self.forDuration(2)
-                else:
-                    progress("WARNING - WRONG lr_time")
-
-                if lr_time == left_back_movement_num - 1:
-                    self.app.turn.ang = - np.pi /2
-                    self.app.turn.start()
-                    yield self.forDuration(2)
-                failure_trial += 1
-=======
->>>>>>> 20745424a5c9dbe9b8fd6ef31a8ad2e7ef05c6da
             #default case for movement to waypoint
             else:
                 #min turn angle of 3 degrees - approx acc. of servo
@@ -394,15 +324,8 @@ class Auto(Plan):
 
 
                 #only move by at most step_size
-<<<<<<< HEAD
-                #TODO tune this value
-                step_size = 10
-                if(distance < step_size):
-                    self.app.move.dist = distance * self.front_or_back
-=======
                 if(self.distance < self.step_size):
                     self.app.move.dist = self.distance * self.front_or_back
->>>>>>> 20745424a5c9dbe9b8fd6ef31a8ad2e7ef05c6da
                 else:
                     self.app.move.dist = self.step_size * self.front_or_back
 
