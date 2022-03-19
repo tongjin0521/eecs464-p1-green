@@ -1,6 +1,7 @@
 from cmath import phase
 from pickle import TRUE
 from turtle import back
+from urllib.request import ProxyDigestAuthHandler
 from numpy import (
     asarray, c_, dot, isnan, append, ones, reshape, mean,
     argsort, degrees, pi, arccos, ones_like
@@ -105,7 +106,7 @@ class Auto(Plan):
         self.failure_trial = 0
         self.within_min_distnace = False
         self.failure_front_or_back = None
-        self.left_back_movement_num = 16
+        self.left_back_movement_num = 16 + 2  # 2 additional for move and turn
         self.turn_rads = None
         self.curr_waypoint = None
         self.next_waypoint = None
@@ -113,7 +114,7 @@ class Auto(Plan):
         self.distance = None
         self.min_distance_threshold = 5 #TODO fix this value... it should be if distance is very small... how small ... within tag?
         self.min_turn_angle = 3.0 * np.pi / 180.0
-        self.step_size = 6
+        self.step_size = 8
 
 
 
@@ -209,11 +210,13 @@ class Auto(Plan):
             if self.failure_trial == 0:
                 self.failure_front_or_back = self.front_or_back
             # move forward & left and right
-            # self.robSim.liftWheels()
-            # yield self.forDuration(1)
+            self.robSim.liftWheels()
+            yield self.forDuration(2)
+
+            progress("trying to move in dir: "+ self.failure_front_or_back)
             self.app.move.dist = 10 * self.failure_front_or_back
             self.app.move.start()
-            yield self.forDuration(2)
+            yield self.forDuration(6)
 
             # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
             # y = [p_i.pos.imag for p_i in self.robSim.pf.particles]
@@ -230,10 +233,13 @@ class Auto(Plan):
         # near_the_bound = self.near_the_bound()
         near_the_bound = False
         # progress("NEAR THE BOUND: "+ str(near_the_bound))
-        # progress("Failure_trial: "+ str(self.failure_trial))
+        
         bf_amount = 5.0
         lr_time = self.failure_trial % self.left_back_movement_num
+        progress("Failure_trial: "+ str(self.failure_trial))
+        progress("lr_time: " + str(lr_time))
         if lr_time >= 0 and lr_time < self.left_back_movement_num/ 4:
+            progress("left")
             if not near_the_bound:
                 self.app.move.dist = bf_amount * self.failure_front_or_back
                 self.app.move.start()
@@ -241,6 +247,7 @@ class Auto(Plan):
             else:
                 self.failure_trial +=  2*(self.left_back_movement_num/ 4 - lr_time)
         elif lr_time >= self.left_back_movement_num/ 4 and lr_time < 3*self.left_back_movement_num/ 4:
+            progress("right")
             if not near_the_bound:
                 self.app.move.dist = bf_amount * self.failure_front_or_back * -1
                 self.app.move.start()
@@ -249,6 +256,7 @@ class Auto(Plan):
                 if lr_time > self.left_back_movement_num /2:
                     self.failure_trial +=  2*(3 * self.left_back_movement_num/ 4 - lr_time)
         elif lr_time >= 3*self.left_back_movement_num/ 4 and lr_time < self.left_back_movement_num:
+            progress("back left")
             self.app.move.dist = bf_amount * self.failure_front_or_back
             self.app.move.start()
             yield self.forDuration(2)
@@ -266,9 +274,9 @@ class Auto(Plan):
         sample_collected = [[f, b]]
         num_samples_wanted = 5
         num_sensor_trials = 0
-        while (len(sample_collected) < num_samples_wanted and num_sensor_trials < 30):
+        while (len(sample_collected) < num_samples_wanted and num_sensor_trials < 20):
             ts,f,b = self.sensorP.lastSensor
-            progress("collecting sensor vals: "+ str(len(sample_collected)))
+            #progress("collecting sensor vals: "+ str(len(sample_collected)))
             if (ts != last_ts):
                 sample_collected.append([f,b])
                 last_ts = ts
@@ -302,7 +310,7 @@ class Auto(Plan):
             if (self.numWaypoints != len(self.sensorP.lastWaypoints[1])):
                 yield self.waypoint_reached()
             
-
+            yield self.update_pf()
             yield self.calculate_movement(print=True)
             
             if self.distance <= 1.5 or self.failure_trial > 0:
@@ -329,8 +337,9 @@ class Auto(Plan):
                 else:
                     self.app.move.dist = self.step_size * self.front_or_back
 
-                self.app.move.start()
-                yield self.forDuration(1)
+                
 
-                yield self.update_pf()
+                self.app.move.start()
+                yield self.forDuration(2)
+
         yield
