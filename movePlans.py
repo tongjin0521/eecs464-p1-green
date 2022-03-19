@@ -84,7 +84,7 @@ class DanceClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
-        self.waiting_time = 1
+        self.waiting_time = 4
 
     def behavior(self):
         self.robSim.dance()
@@ -248,7 +248,7 @@ class Auto(Plan):
                     #execute turn
                     self.app.turn.ang = np.pi /2
                     self.app.turn.start()
-                    yield self.forDuration(2)
+                    yield self.forDuration(3)
                 # TODO: speed up back & keep record of front_or_back since it might be changing
 
                 # near_the_bound = self.near_the_bound()
@@ -310,12 +310,12 @@ class Auto(Plan):
 
                     self.app.turn.ang = turn_rads
                     self.app.turn.start()
-                    yield self.forDuration(2)
+                    yield self.forDuration(3)
 
 
                 #only move by at most step_size
                 #TODO tune this value
-                step_size = 6
+                step_size = 10
                 if(distance < step_size):
                     self.app.move.dist = distance * self.front_or_back
                 else:

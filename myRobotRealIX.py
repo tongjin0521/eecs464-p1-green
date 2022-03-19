@@ -89,7 +89,7 @@ class RobotSim( RobotSimInterface ):
         self.app = app
         self.servo = self.app.robot.at
         self.liftAngle = 3500
-        self.danceAngle = -4500
+        self.danceAngle = -1000
         self.manualSpeed = 10 
         self.spinMotorOffset = 4500
         self.servo.wheelMotorFront.set_mode('cont')
@@ -118,7 +118,7 @@ class RobotSim( RobotSimInterface ):
         if self.wheelsDown:
             self.app.liftWheels.start()
         while (self.servo.liftServoFront.get_pos() > self.liftAngle /2):
-            progress("--")
+            # progress("--")
             yield 0.1
         currentPos = self.servo.spinMotor.get_pos()
         # print(currentPos)
