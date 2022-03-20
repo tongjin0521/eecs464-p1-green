@@ -64,7 +64,7 @@ class LiftWheelsClass(Plan):
     def __init__(self, app, robSim):
         Plan.__init__(self, app)
         self.robSim = robSim
-        self.waiting_time = 1
+        self.waiting_time = 2
     def behavior(self):
         self.robSim.liftWheels()
         yield self.forDuration(self.waiting_time)
@@ -209,14 +209,14 @@ class Auto(Plan):
         if self.failure_trial % self.left_back_movement_num == 0:
             if self.failure_trial == 0:
                 self.failure_front_or_back = self.front_or_back
-            # move forward & left and right
-            progress("trying to move in dir: "+ self.failure_front_or_back)
-            self.app.move.dist = 10 * self.failure_front_or_back
-            self.app.move.start()
-            yield self.forDuration(2)
-        elif self.failure_trial % self.left_back_movement_num == 1:
             self.app.turn.ang = np.pi /2
             self.app.turn.start()
+            yield self.forDuration(2)
+        elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num -1:
+            # move forward & left and right
+            progress("trying to move in dir: "+ str(self.failure_front_or_back))
+            self.app.move.dist = 10 * self.failure_front_or_back
+            self.app.move.start()
             yield self.forDuration(2)
 
             # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
@@ -226,7 +226,7 @@ class Auto(Plan):
             # progress(covariance_angle)
             # self.turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
             #execute turn
-        elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num - 1:
+        elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num - 2:
             self.app.turn.ang = - np.pi /2
             self.app.turn.start()
             yield self.forDuration(2)
@@ -237,27 +237,28 @@ class Auto(Plan):
             near_the_bound = False
           
             bf_amount = 5.0
-            lr_time = (self.failure_trial - 3) % self.left_back_movement_num
+            lr_time = self.failure_trial % self.left_back_movement_num - 1
+            it_ind = self.left_back_movement_num - 3
             progress("Failure_trial: "+ str(self.failure_trial))
             progress("lr_time: " + str(lr_time))
-            if lr_time >= 0 and lr_time < self.left_back_movement_num/ 4:
+            if lr_time >= 0 and lr_time < it_ind/ 4:
                 progress("left")
                 if not near_the_bound:
                     self.app.move.dist = bf_amount * self.failure_front_or_back
                     self.app.move.start()
                     yield self.forDuration(2)
                 else:
-                    self.failure_trial +=  2*(self.left_back_movement_num/ 4 - lr_time)
-            elif lr_time >= self.left_back_movement_num/ 4 and lr_time < 3*self.left_back_movement_num/ 4:
+                    self.failure_trial +=  2*(it_ind - lr_time)
+            elif lr_time >= it_ind/ 4 and lr_time < 3*it_ind/ 4:
                 progress("right")
                 if not near_the_bound:
                     self.app.move.dist = bf_amount * self.failure_front_or_back * -1
                     self.app.move.start()
                     yield self.forDuration(2)
                 else:
-                    if lr_time > self.left_back_movement_num /2:
-                        self.failure_trial +=  2*(3 * self.left_back_movement_num/ 4 - lr_time)
-            elif lr_time >= 3*self.left_back_movement_num/ 4 and lr_time < self.left_back_movement_num:
+                    if lr_time > it_ind /2:
+                        self.failure_trial +=  2*(3 * it_ind/ 4 - lr_time)
+            elif lr_time >= 3*it_ind/ 4 and lr_time < it_ind:
                 progress("back left")
                 self.app.move.dist = bf_amount * self.failure_front_or_back
                 self.app.move.start()
@@ -308,27 +309,27 @@ class Auto(Plan):
             #default case for movement to waypoint
             else:
                 yield self.calculate_angle(print = True)
-
-                if self.distance < self.min_distance_threshold:
-                    self.within_min_distnace = True
-                    
-                elif(abs(self.turn_rads) > self.min_turn_angle and self.distance > self.min_distance_threshold):
-                    # progress("turn")
-                    self.app.turn.ang = self.turn_rads
-                    self.app.turn.start()
-                    yield self.forDuration(3)
-
-
-                #only move by at most step_size
-                if(self.distance < self.step_size):
-                    self.app.move.dist = self.distance * self.front_or_back
+                if(abs(self.turn_rads) > self.min_turn_angle and self.distance > self.min_distance_threshold):
+                    if (self.robSim.wheelsDown):
+                        self.app.liftWheels.start()
+                        yield self.forDuration(2)
+                    else:
+                        # progress("turn")
+                        self.app.turn.ang = self.turn_rads
+                        self.app.turn.start()
+                        yield self.forDuration(4)
                 else:
-                    self.app.move.dist = self.step_size * self.front_or_back
-
-                
-
-                self.app.move.start()
-                yield self.forDuration(2)
+                    if (not self.robSim.wheelsDown):
+                        self.app.liftWheels.start()
+                        yield self.forDuration(2)
+                    else:
+                        #only move by at most step_size
+                        if(self.distance < self.step_size):
+                            self.app.move.dist = self.distance * self.front_or_back
+                        else:
+                            self.app.move.dist = self.step_size * self.front_or_back
+                        self.app.move.start()
+                        yield self.forDuration(2)
 
         yield
     # TODO: 

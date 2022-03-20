@@ -48,8 +48,8 @@ class Particle_Filter:
             self.particles.append(Particle(pos = init_pos + init_pos_noise_i,angle = init_angle *init_angle_noise_i , weight = 1/ self.num_particles) )
 
     def move_update(self,move_dist):
-        move_dist_noise = 0.5
-        move_angle_noise = np.pi / 180 * 0.5
+        move_dist_noise = 0.1
+        move_angle_noise = np.pi / 180 * 0.1
 
         for particle_i in self.particles:
             ## NOTE: add noise as dist increases (if needed)
@@ -148,7 +148,7 @@ class Particle_Filter:
             if(particle_distance > max_sense):
                 max_sense = particle_distance
             normalized_distance = abs(particle_distance - real_dist) / 255.0
-            scale_factor = (1 - normalized_distance)
+            scale_factor = (1 - normalized_distance * 1)
             if(about_equal(real_dist, particle_distance, noise_est)):
                 self.particles[i].weight *= 1
             else:
