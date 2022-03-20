@@ -24,6 +24,11 @@ from pdb import set_trace as DEBUG
 import math
 import random
 
+import matplotlib
+#matplotlib.use('QT5Agg')
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+
 DEFAULT_MSG_TEMPLATE = {
     0 : [[2016, 1070], [1993, 1091], [2022, 1115], [2044, 1093]],
     1 : [[1822, 1323], [1824, 1287], [1787, 1281], [1784, 1315]],
@@ -80,7 +85,9 @@ class RobotSim( RobotSimInterface ):
         #reset isnt exact at waypoint, it can anywhere within the tag
         #we do have a state estimate that can be displayed but it is currently commented out
 
-
+        self.xOther = None
+        self.yOther = None
+        self.fig = None
         #real noises used to update real robot posisiton
         self.real_distance_noise = 0.00001 # Distance noise
         self.real_angle_noise = 0.00001 # Angle noise
@@ -181,19 +188,34 @@ class RobotSim( RobotSimInterface ):
         else:
             print("WARNING - WRONG PLOT STYLE")
 
+    def updateParticle(self):
+        '''
+        coordinates = np.asarray([[x.pos.real, x.pos.imag] for x in self.pf.particles])
+        #store particle weights in x, y
+        weights = [float(particle.weight) for particle in self.pf.particles]
+        max = np.max(weights)
+        min = np.min(weights)
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+
+        self.x = [int(x[0]) for x in coordinates]
+        self.y = [int(y[1]) for y in coordinates]
+        '''
+        pass
+
     def plot(self):
         pass
 
     def refreshState(self):
-        # update particles
-        
+        self.fig.clear()
         # ts,f,b = self.sensor.lastSensor
         # if f!=None and b!=None and self.sensor_ts!= ts and f * b > 0 and ((f+b) > 10) :
         #     self.sensor_ts = ts
         #     self.pf.resample_particles()
         #     new_time_waypoints, waypoints = self.sensor.lastWaypoints
         #     self.pf.sensor_update(self.sensor,waypoints[0],waypoints[1],self.REF_TO_CAMERA)
-
+        
         # Compute tag points relative to tag center, with 1st point on real axis
         tag = self.zTag * self.ang + self.pos
         tagEst = self.zTag * self.angEst + self.posEst
@@ -217,7 +239,6 @@ class RobotSim( RobotSimInterface ):
         xy1_trans = (xy1[:2]/xy1[2]).T
         robotPosRefComplex = xy1_trans[0]+xy1_trans[1]*1j
         '''
-
         #mean distance of tag corners from tag center
         r = np.mean(abs(tag-c))
         #Laser points 90 degrees counter clockwise from base angle
@@ -296,3 +317,6 @@ class RobotSim( RobotSimInterface ):
 
         self.visRobot("~scatter", x, y, c=weights, cmap='gray')
         self.visArena("~scatter", x, y, c=weights, cmap='gray')
+        #refresh particle coords
+        self.xOther = [int(x[0]) for x in coordinates]
+        self.yOther = [int(y[1]) for y in coordinates]

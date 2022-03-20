@@ -199,36 +199,41 @@ class RobotSim( RobotSimInterface ):
         pass
 
     def refreshState(self):   
-        #update Particles
-        self.updateParticles()     
-        #update figure
-        self.fig.canvas.draw()
-        self.fig.canvas.flush_events()
-        pass
+        self.fig.clear()
+        self.updateParticle()
     
     def plot(self):
-        plt.ion()
-        #update particles
-        self.updateParticle()
-        #store waypoints
-        new_time_waypoints, waypoints = self.sensorP.lastWaypoints
-        #plot the particles
-        self.fig = plt.scatter(self.x,self.y)
-
+        coordinates = np.asarray([[x.pos.real, x.pos.imag] for x in self.pf.particles])
+        #store particle weights in x, y
+        weights = [float(particle.weight) for particle in self.pf.particles]
+        max = np.max(weights)
+        min = np.min(weights)
+        if(max != min):
+            for i in range(0, len(weights)):
+                weights[i] = translate(weights[i],min, max, 0.0, 1.0)
+        
+        new_time_waypoints, waypoints = self.sensor.lastWaypoints
+        #fig = plt.scatter(x,y)
         wptx = [wpt[0] for wpt in waypoints]
         wpty = [wpt[1] for wpt in waypoints]
+        #print(len(self.wptx))
 
         #plot the waypoints as rectangles
         for i in range(len(wptx)):
             rect = plt.Rectangle((wptx[i]-5, wpty[i]-5),width = 10,height = 10, fill=False)
+            plt.text(wptx[i]-2.5,wpty[i]-2.5,i,fontsize=7, color="black", weight="bold")
             plt.gca().add_patch(rect)
         #graph axes
         plt.xlim([-100, 100])
         plt.ylim([-100, 100])
-        #show plot
-        print("plotting")
+        self.x = [int(x[0]) for x in coordinates]
+        self.y = [int(y[1]) for y in coordinates]
+
+        plt.scatter(self.x, self.y, c=weights, cmap='ocean')
+        self.fig = plt.figure()
         matplotlib.use('QT5Agg')
         plt.show()
+        print("Plotting!")
     
     def updateParticle(self):
         coordinates = np.asarray([[x.pos.real,x.pos.imag] for x in self.pf.particles])

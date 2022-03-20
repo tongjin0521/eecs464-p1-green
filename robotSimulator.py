@@ -148,6 +148,9 @@ class RobotSimulatorApp( JoyApp ):
         return progress(say + "Turn right")
       if evt.key == K_r:
         return progress(say + "RESET")
+      if evt.key == K_p:
+        self.robSim.plot()
+        return progress(say + "PLOTTING")
       if evt.key == K_q:
         progress("--------EDR--------")
         self.stop()
