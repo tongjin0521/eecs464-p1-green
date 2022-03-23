@@ -209,15 +209,25 @@ class Auto(Plan):
         if self.failure_trial % self.left_back_movement_num == 0:
             if self.failure_trial == 0:
                 self.failure_front_or_back = self.front_or_back
-            self.app.turn.ang = np.pi /2
-            self.app.turn.start()
-            yield self.forDuration(2)
+            if (self.robSim.wheelsDown):
+                self.app.liftWheels.start()
+                yield self.forDuration(2)
+                self.failure_trial -=1
+            else:
+                self.app.turn.ang = np.pi /2
+                self.app.turn.start()
+                yield self.forDuration(2)
         elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num -1:
-            # move forward & left and right
             progress("trying to move in dir: "+ str(self.failure_front_or_back))
-            self.app.move.dist = 10 * self.failure_front_or_back
-            self.app.move.start()
-            yield self.forDuration(2)
+            # move forward & left and right
+            if (not self.robSim.wheelsDown):
+                self.app.liftWheels.start()
+                yield self.forDuration(2)
+                self.failure_trial -=1
+            else:    
+                self.app.move.dist = 10 * self.failure_front_or_back
+                self.app.move.start()
+                yield self.forDuration(2)
 
             # x = [p_i.pos.real for p_i in self.robSim.pf.particles]
             # y = [p_i.pos.imag for p_i in self.robSim.pf.particles]
@@ -227,9 +237,14 @@ class Auto(Plan):
             # self.turn_rads,self.front_or_back = self.nearest_turn(angle,covariance_angle)
             #execute turn
         elif self.failure_trial % self.left_back_movement_num == self.left_back_movement_num - 2:
-            self.app.turn.ang = - np.pi /2
-            self.app.turn.start()
-            yield self.forDuration(2)
+            if (self.robSim.wheelsDown):
+                self.app.liftWheels.start()
+                yield self.forDuration(2)
+                self.failure_trial -=1
+            else:
+                self.app.turn.ang = - np.pi /2
+                self.app.turn.start()
+                yield self.forDuration(2)
         else:   
             # TODO: speed up back & keep record of front_or_back since it might be changing
 

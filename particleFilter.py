@@ -143,7 +143,7 @@ class Particle_Filter:
         #for particle in self.particles:
         for i in range(0, len(self.particles)):
             #particle_distance = self.Sensor.sense(None, self.particles[i].pos, a, b) ##TODO
-            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 10.5))
+            particle_distance = float(self.Sensor.sense(None, a, b, self.particles[i].pos, 9.8))
             #print(particle_distance)
             if(particle_distance > max_sense):
                 max_sense = particle_distance
